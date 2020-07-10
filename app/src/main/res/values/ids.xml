@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="left_page_view" type="id" />
+    <item name="right_page_view" type="id" />
+    <item name="web_view" type="id" />
+    <item name="inSticky" type="id" />
+    <item name="title" type="id" />
+    <item name="loading" type="id" />
+    <item name="netImageView" type="id" />
+</resources>
