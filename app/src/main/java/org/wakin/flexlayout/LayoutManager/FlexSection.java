@@ -3,8 +3,6 @@ package org.wakin.flexlayout.LayoutManager;
 import android.graphics.Point;
 import android.graphics.Rect;
 
-import androidx.recyclerview.widget.RecyclerView;
-
 import org.wakin.flexlayout.util.Comparator;
 
 import java.util.ArrayList;
@@ -81,8 +79,8 @@ public abstract class FlexSection {
         for (int itemIndex = itemStart; itemIndex < itemEnd; itemIndex++)
         {
             FlexItem item = mItems.get(itemIndex);
-            mLayoutCallback.getItemSize(mSection, itemIndex, size);
-            item.setFullSpan(mLayoutCallback.isItemFullSpan(mSection, itemIndex));
+            mLayoutCallback.getSizeForItem(mSection, itemIndex, size);
+            item.setFullSpan(mLayoutCallback.isFullSpanAtItem(mSection, itemIndex));
             rect = item.getFrame();
             rect.set(rect.left, rect.top, rect.left + size.width, rect.top + size.height);
         }
@@ -105,9 +103,9 @@ public abstract class FlexSection {
         Size size = new Size();
         boolean isFullSpan = false;
         for (int itemIndex = itemStart; itemIndex < itemEnd; itemIndex++) {
-            mLayoutCallback.getItemSize(mSection, itemIndex, size);
+            mLayoutCallback.getSizeForItem(mSection, itemIndex, size);
             FlexItem item = new FlexItem(this, itemIndex, origin, size);
-            item.setFullSpan(mLayoutCallback.isItemFullSpan(mSection, itemIndex));
+            item.setFullSpan(mLayoutCallback.isFullSpanAtItem(mSection, itemIndex));
 
             items.add(item);
         }

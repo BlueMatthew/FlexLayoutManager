@@ -3,8 +3,6 @@ package org.wakin.flexlayout.LayoutManager;
 import android.graphics.Point;
 import android.graphics.Rect;
 
-import androidx.recyclerview.widget.RecyclerView;
-
 import org.wakin.flexlayout.util.Algorithm;
 
 import java.util.ArrayList;
@@ -86,7 +84,7 @@ public class FlexWaterfallSection extends FlexSection {
         mColumns.clear();
         mFrame.bottom = mFrame.top;
 
-        int numberOfItems = mLayoutCallback.getItemCountForSection(mSection);
+        int numberOfItems = mLayoutCallback.getNumberOfItemsInSection(mSection);
         if (numberOfItems <= 0) {
             return;
         }
@@ -99,7 +97,7 @@ public class FlexWaterfallSection extends FlexSection {
         int minimumInteritemSpacing = mLayoutCallback.getMinimumInteritemSpacingForSection(mSection);
         int minimumLineSpacing = mLayoutCallback.getMinimumLineSpacingForSection(mSection);
 
-        int numberOfColumns = mLayoutCallback.getColumnCountForSection(mSection);
+        int numberOfColumns = mLayoutCallback.getNumberOfColumnsForSection(mSection);
         if (numberOfColumns < 1) {
             numberOfColumns = 1;
         }
@@ -144,7 +142,7 @@ public class FlexWaterfallSection extends FlexSection {
         // loadItems();
         for (int itemIndex = 0; itemIndex < numberOfItems; itemIndex++)
         {
-            boolean fullSpan = mLayoutCallback.isItemFullSpan(mSection, itemIndex);
+            boolean fullSpan = mLayoutCallback.isFullSpanAtItem(mSection, itemIndex);
 
             // find column with minimal size
             FlexColumn column = searchColumn(fullSpan ? maxComparator : minComparator);
@@ -152,7 +150,7 @@ public class FlexWaterfallSection extends FlexSection {
             originOfItem.set(fullSpan ? mColumns.get(0).getFrame().left : column.getFrame().left, column.getFrame().bottom + (column.getFrame().bottom == column.getFrame().top ? 0 : minimumLineSpacing));
             //: CGPointMake((*columnItOfMinimalSize)->m_frame.origin.x + (*columnItOfMinimalSize)->m_frame.size.width + (itemIndexInColumn == 0 ? 0.0f : minimumLineSpacing), (*columnItOfMinimalSize)->m_frame.origin.y);
 
-            mLayoutCallback.getItemSize(mSection, itemIndex, size);
+            mLayoutCallback.getSizeForItem(mSection, itemIndex, size);
             FlexItem item = new FlexItem(this, itemIndex, originOfItem, size);
 
             mItems.add(item);

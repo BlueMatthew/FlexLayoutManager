@@ -4,8 +4,6 @@ import android.graphics.Point;
 import android.graphics.Rect;
 
 
-import androidx.recyclerview.widget.RecyclerView;
-
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -64,7 +62,7 @@ public class FlexFlowSection extends FlexSection {
         mRows.clear();
         mFrame.bottom = mFrame.top;
 
-        int itemCount = mLayoutCallback.getItemCountForSection(mSection);
+        int itemCount = mLayoutCallback.getNumberOfItemsInSection(mSection);
         if (itemCount <= 0) {
             return;
         }
@@ -79,7 +77,7 @@ public class FlexFlowSection extends FlexSection {
         
         Point pointOfItem = new Point();
         Size sizeOfItem = new Size();
-        boolean hasFixedSize = mLayoutCallback.getFixedItemSizeForSection(mSection, sizeOfItem);
+        boolean hasFixedSize = mLayoutCallback.hasFixedItemSize(mSection, sizeOfItem);
         if (hasFixedSize) {
             // If all items have fixed size, fullSpac will be ignored
             // Calculate the number of items palced in one row
@@ -117,7 +115,7 @@ public class FlexFlowSection extends FlexSection {
 
             FlexRow row = null;
 
-            int numberOfColumns = mLayoutCallback.getColumnCountForSection(mSection);
+            int numberOfColumns = mLayoutCallback.getNumberOfColumnsForSection(mSection);
             if (numberOfColumns <= 0) {
                 numberOfColumns = 1;
             }
@@ -131,8 +129,8 @@ public class FlexFlowSection extends FlexSection {
             int availableSize = 0;
             for (int itemIndex = 0; itemIndex < itemCount; itemIndex++) {
 
-                fullSpan = mLayoutCallback.isItemFullSpan(mSection, itemIndex);
-                mLayoutCallback.getItemSize(mSection, itemIndex, sizeOfItem);
+                fullSpan = mLayoutCallback.isFullSpanAtItem(mSection, itemIndex);
+                mLayoutCallback.getSizeForItem(mSection, itemIndex, sizeOfItem);
 
                 if (null != row)
                 {

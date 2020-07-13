@@ -120,7 +120,7 @@ public class ItemView extends ViewGroup {
     private void setViewBorder(View view, int color) {
         GradientDrawable border = new GradientDrawable();
         border.setColor(Color.TRANSPARENT);
-        border.setStroke(4, color);
+        border.setStroke(16, color);
         if(Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
             view.setBackgroundDrawable(border);
         } else {

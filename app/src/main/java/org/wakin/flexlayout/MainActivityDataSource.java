@@ -72,7 +72,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {800, 10},
+            {8000, 2},
             {90, 0},
             {20, 0},
             {120, 0},
@@ -190,6 +190,37 @@ public class MainActivityDataSource {
 
         return cellData.fullSpan;
     }
+
+    public int getInfoForItemsBatchly(int section, int itemStart, int itemCount, int[] data) {
+
+        if (null == data) {
+            return 0;
+        }
+
+        SectionData sectionData = mPages[mPage].sections[section];
+        int length = data.length;
+        int itemCountInBuffer = (int)Math.floor(length / 3);
+        if (itemCountInBuffer < 1) {
+            return 0;
+        }
+        itemCount = Math.min(itemCount, itemCountInBuffer);
+        itemCount = Math.min(itemCount, sectionData.itemCount - itemStart);
+
+        int offset = 0;
+        for (int itemIndex = 0; itemIndex < itemCount; itemIndex++) {
+            CellData cellData = sectionData.items.get(itemStart + itemIndex);
+
+            data[offset] = cellData.width;
+            data[offset + 1] = cellData.height;
+            data[offset + 2] = cellData.fullSpan ? 1 : 0;
+            // size.set(cellData.width, cellData.height);
+            offset += 3;
+        }
+
+        return itemCount;
+    }
+
+    // mDataSource.getItemSize(section, item, size);
 
     public int getViewType(int position) {
         CellData cellData = getCellData(position);

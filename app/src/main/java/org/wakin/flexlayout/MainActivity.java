@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
                 mAdapter.notifyDataSetChanged();
             }
-        }, 64);
+        }, 100);
 
         handler.postDelayed(new Runnable() {
             @Override
@@ -834,46 +834,62 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     }
 
     /// interface LayoutCallback
+    @Override
     public int getLayoutModeForSection(int section) {
         return mDataSource != null && mDataSource.isSectionWaterfallMode(section) ? FlexLayoutManager.WATERFLAALAYOUT : FlexLayoutManager.FLOWLAYOUT;
     }
 
-    public int getSectionCount() {
+    @Override
+    public int getNumberOfSections() {
         return mDataSource == null ? 0 : mDataSource.getSectionCount();
     }
 
-    public int getItemCountForSection(int section) {
+    @Override
+    public int getNumberOfItemsInSection(int section) {
         return mDataSource == null ? 0 : mDataSource.getSection(section).itemCount;
     }
 
+    @Override
     public Insets getInsetsForSection(int section) {
         return mDataSource == null ? Insets.NONE : mDataSource.getSection(section).insets;
     }
 
+    @Override
     public int getMinimumInteritemSpacingForSection(int section) {
         return mDataSource.getSection(section).interitemSpacing;
     }
 
+    @Override
     public int getMinimumLineSpacingForSection(int section) {
         return mDataSource.getSection(section).lineSpacing;
     }
 
-    public boolean getFixedItemSizeForSection(int section, Size size) {
+    @Override
+    public boolean hasFixedItemSize(int section, Size size) {
         return false;
     }
 
-    public void getItemSize(int section, int item, Size size) {
+    @Override
+    public void getSizeForItem(int section, int item, Size size) {
         mDataSource.getItemSize(section, item, size);
     }
 
-    public boolean isItemFullSpan(int section, int item) {
+    @Override
+    public boolean isFullSpanAtItem(int section, int item) {
         return mDataSource.isItemFullSpan(section, item);
     }
 
-    public int getColumnCountForSection(int section) {
+    @Override
+    public int getNumberOfColumnsForSection(int section) {
         return mDataSource.getSection(section).columns;
     }
 
+    @Override
+    public int getInfoForItemsBatchly(int section, int itemStart, int itemCount, int[] data) {
+        return mDataSource.getInfoForItemsBatchly(section, itemStart, itemCount, data);
+    }
+
+    @Override
     public void onItemEnterStickyMode(int section, int item, int position, Point point) {
         if (section == mDataSource.getMinPagableSection() && item == 0) {
             mIsCatBarStickyMode = true;
@@ -883,6 +899,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         Log.d("Flex", "Item: [" + section + "," + item + "] enter into sticky mode");
     }
 
+    @Override
     public void onItemExitStickyMode(int section, int item, int position) {
         if (section == mDataSource.getMinPagableSection() && item == 0) {
             mIsCatBarStickyMode = false;
