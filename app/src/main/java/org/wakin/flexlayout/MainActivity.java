@@ -165,14 +165,14 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     private void setFlexLayoutManager() {
 
         mRecyclerView.setBackgroundColor(Color.LTGRAY);
-        FlexLayoutManager layoutManager = new FlexLayoutManager(this, FlexLayoutManager.VERTICAL, false);
+        FlexLayoutManager layoutManager = new FlexLayoutManager(this, FlexLayoutManager.VERTICAL, false, this);
 
         for (SectionPosition sp : mDataSource.getStickyItems()) {
             layoutManager.addStickyItem(sp.section, sp.item);
         }
 
         // layoutManager.setStackedStickyItems(false);
-        layoutManager.setLayoutCallback(this);
+        // layoutManager.setLayoutCallback(this);
 
         mRecyclerView.setLayoutManager(layoutManager);
     }

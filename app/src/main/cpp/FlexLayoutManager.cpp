@@ -3,14 +3,6 @@
 #include <vector>
 #include "FlexLayout.h"
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_org_wakin_flexlayoutmanager_MainActivity_stringFromJNI(
-        JNIEnv* env,
-        jobject /* this */) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
-}
-
 // protected native long createLayout();
 extern "C" JNIEXPORT long JNICALL
 Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
@@ -18,12 +10,14 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
         jobject javaThis,
         jobject layoutCallback) {
 
+    LOGD("createLayout starts");
+
     FlexLayout *pLayout = new FlexLayout(env, javaThis, layoutCallback);
 
     return reinterpret_cast<long>(pLayout);
 }
 
-// protected native long createLayout();
+// protected native long releaseLayout();
 extern "C" JNIEXPORT void JNICALL
 Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_releaseLayout(
         JNIEnv* env,
@@ -35,6 +29,63 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_releaseLayout(
     {
         delete pLayout;
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_addStickyItem(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout,
+        jint section, jint item) {
+
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+    if (NULL != pLayout)
+    {
+        pLayout->addStickyItem(section, item);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_clearStickyItems(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout) {
+
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+    if (NULL != pLayout)
+    {
+        pLayout->clearStickyItems();
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_setStackedStickyItems(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout,
+        jboolean stackedStickyItems) {
+
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+    if (NULL != pLayout)
+    {
+        pLayout->setStackedStickyItems(stackedStickyItems);
+    }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_isStackedStickyItems(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout) {
+
+    jboolean result = 1;
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+    if (NULL != pLayout)
+    {
+        result = pLayout->isStackedStickyItems() ? 1 : 0;
+    }
+
+    return result;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -69,29 +120,23 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
         Size size(width, height);
         Size contentSize(contentWidth, contentHeight);
         Point contentOffset(contentOffsetX, contentOffsetY);
-        pLayout->getItemsInRect(layoutItems, size, insets, contentSize, contentOffset);
-
-        jclass listClass = env->GetObjectClass(items);
-
-        jclass layoutItemClass = env->FindClass("org/wakin/flexlayout/LayoutManager/LayoutItem");
-        jclass rectClass = env->FindClass("android/graphics/Rect");
-
-        jmethodID constuctMid = env->GetMethodID(layoutItemClass, "<init>", "(IIIZIIII)V");
-
-        jmethodID addMid = env->GetMethodID(listClass, "add", "(Ljava/lang/Object;)Z");
-
-        for (std::vector<LayoutItem *>::iterator it = layoutItems.begin(); it != layoutItems.end(); ++it)
-        {
-            jobject javaLayoutItem = env->NewObject(layoutItemClass, constuctMid, (*it)->section, (*it)->item, (*it)->position, jboolean((*it)->data == 1 ? 1 : 0),
-                                                    (*it)->frame.left(), (*it)->frame.top(), (*it)->frame.right(), (*it)->frame.bottom());
-
-
-            jboolean ret = env->CallBooleanMethod(items, addMid, javaLayoutItem);
-
-            delete (*it);
-
-        }
-
-        layoutItems.clear();
+        pLayout->getItemsInRect(items, size, insets, contentSize, contentOffset);
     }
+}
+
+extern "C" JNIEXPORT jobject JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_calcContentOffsetForScroll(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout,
+        jint position, jint itemOffsetX, jint itemOffsetY) {
+
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+
+    if (NULL != pLayout)
+    {
+        return pLayout->calcContentOffsetForScroll(position, itemOffsetX, itemOffsetY);
+    }
+
+    return NULL;
 }

@@ -1,5 +1,6 @@
 package org.wakin.flexlayout.LayoutManager;
 
+import android.graphics.Point;
 import android.graphics.Rect;
 
 import java.util.List;
@@ -8,22 +9,23 @@ public class LayoutItem implements Comparable<LayoutItem> {
 
     private int mSection;
     private int mItem;
-    private boolean mInSticky;
+    private int mData;
     private Rect mFrame;
     private int mPosition = 0;
+    private Point mOroginalPoint = null;
 
     public LayoutItem(int section, int item, int position) {
         mSection = section;
         mItem = item;
         mPosition = position;
-        mInSticky = false;
+        mData = 0;
         mFrame = new Rect();
     }
 
     public LayoutItem(FlexItem item) {
         mSection = item.getSection();
         mItem = item.getItem();
-        mInSticky = false;
+        mData = 0;
         mPosition = item.getAdapterPosition();
         mFrame = new Rect();
         item.getFrameOnView(mFrame);
@@ -33,7 +35,10 @@ public class LayoutItem implements Comparable<LayoutItem> {
         mSection = section;
         mItem = item;
         mPosition = position;
-        mInSticky = inSticky;
+        mData = 0;
+        if (inSticky) {
+            mData |= 1;
+        }
         mFrame = new Rect(left, top, right, bottom);
     }
 
@@ -45,12 +50,9 @@ public class LayoutItem implements Comparable<LayoutItem> {
         return mItem;
     }
 
-    public boolean isInSticky() {
-        return mInSticky;
-    }
 
-    public void setInSticky(boolean inSticky) {
-        mInSticky = inSticky;
+    public boolean isInSticky() {
+        return (mData & 1) == 1;
     }
 
     public Rect getFrame() {
@@ -67,6 +69,18 @@ public class LayoutItem implements Comparable<LayoutItem> {
 
     public void setPosition(int position) {
         mPosition = position;
+    }
+
+    public void setOriginalPoint(int x, int y) {
+        if (mOroginalPoint == null) {
+            mOroginalPoint = new Point(x, y);
+        } else {
+            mOroginalPoint.set(x, y);
+        }
+    }
+
+    public void setInSticky() {
+        mData |= 1;
     }
 
     @Override

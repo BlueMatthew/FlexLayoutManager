@@ -10,7 +10,6 @@ import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
 
-import androidx.core.util.Pair;
 import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.OrientationHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -62,11 +61,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     OrientationHelper mOrientationHelper;
 
-    private List<FlexSection> mSections;
     private boolean mLayoutInvalidated = false;
-
-    private boolean mStackedStickyItems = true;
-    private SortedMap<SectionPosition, Boolean> mStickyItems;
 
     private int mMinimumPagableSection = NO_POSITION;
     private Point mPagingOffset = new Point();
@@ -91,32 +86,35 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     private Point mContentOffset;
 
-    public FlexLayoutManager() {
+    protected LayoutImpl mLayout = null;
+    protected long mNativeLayout = 0;
+
+    public FlexLayoutManager(LayoutCallback layoutCallback) {
         super();
 
         mOrientation = VERTICAL;
         mContentOffset = new Point();
-        mSections = new ArrayList<>();
-        mStickyItems = new TreeMap<>();
+
+        setLayoutCallback(layoutCallback);
 
         setMeasurementCacheEnabled(false);
     }
 
-    public FlexLayoutManager(Context context, int orientation, boolean reverseLayout) {
+    public FlexLayoutManager(Context context, int orientation, boolean reverseLayout, LayoutCallback layoutCallback) {
         super();
 
         mOrientation = orientation;
         mContentOffset = new Point();
-        mSections = new ArrayList<>();
-        mStickyItems = new TreeMap<>();
+
+        setLayoutCallback(layoutCallback);
 
         setMeasurementCacheEnabled(false);
     }
 
     @Override
     protected void finalize() {
-        if (mLayout != 0) {
-            releaseLayout(mLayout);
+        if (mNativeLayout != 0) {
+            releaseLayout(mNativeLayout);
         }
     }
 
@@ -126,14 +124,23 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     public void setLayoutCallback(LayoutCallback layoutCallback) {
 
-        if (mLayout != 0) {
-            releaseLayout(mLayout);
+        if (NATIVE) {
+            if (mNativeLayout != 0) {
+                releaseLayout(mNativeLayout);
+                mNativeLayout = 0;
+            }
+        } else {
+            mLayout = null;
         }
 
         this.mLayoutCallback = layoutCallback;
 
         if (layoutCallback != null) {
-            mLayout = createLayout(layoutCallback);
+            if (NATIVE) {
+                mNativeLayout = createLayout(layoutCallback);
+            } else {
+                mLayout = new LayoutImpl(layoutCallback);
+            }
         }
 
         mLayoutInvalidated = true;
@@ -169,21 +176,37 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     }
 
     public void addStickyItem(int section, int item) {
-        mStickyItems.put(new SectionPosition(section, item), Boolean.FALSE);
+        if (NATIVE) {
+            addStickyItem(mNativeLayout, section, item);
+        } else {
+            mLayout.addStickyItem(section, item);
+        }
         requestLayout();
     }
 
     public void clearStickyItems() {
-        mStickyItems.clear();
+        if (NATIVE) {
+            clearStickyItems(mNativeLayout);
+        } else {
+            mLayout.clearStickyItems();
+        }
         requestLayout();
     }
 
     public boolean getStackedStickyItems() {
-        return mStackedStickyItems;
+        if (NATIVE) {
+            return isStackedStickyItems(mNativeLayout);
+        } else {
+            return mLayout.isStackedStickyItems();
+        }
     }
 
     public void setStackedStickyItems(boolean stackedStickyItems) {
-        mStackedStickyItems = stackedStickyItems;
+        if (NATIVE) {
+            setStackedStickyItems(mNativeLayout, stackedStickyItems);
+        } else {
+            mLayout.setStackedStickyItems(stackedStickyItems);
+        }
     }
 
     public void setMinimumPagableSection(int minimumPagableSection) {
@@ -359,6 +382,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         }
 
         if (mPendingScrollPosition != NO_POSITION) {
+            /*
             FlexItem item = findItem(mPendingScrollPosition);
             if (item != null) {
                 Point contentOffset = mContentOffset;
@@ -381,6 +405,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 }
                 mContentOffset = contentOffset;
             }
+*/
 
             mPendingScrollPosition = NO_POSITION;
             mPendingScrollPositionOffset = INVALID_OFFSET;
@@ -407,6 +432,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         }
     }
 
+    int aa = 0;
     void fillRect(RecyclerView.Recycler recycler, RecyclerView.State state) {
 
         long debugStartTime = 0;
@@ -414,8 +440,6 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         if (DEBUG) {
             debugStartTime = System.nanoTime();
         }
-
-        Rect visibleRect = getVisibleRect();
 
         if (getItemCount() <= 0 || state.isPreLayout()) {
             return;
@@ -426,142 +450,35 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         SortedMap<LayoutItem, View> visibleStickyItems = new TreeMap<>();
 
-        int lowerSectionBound = -1;
-        int upperSectionBound = -1;
 
         if (NATIVE) {
 
-            filterItems(mLayout, visibleItems, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
+            filterItems(mNativeLayout, visibleItems, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
                     mContentSizeWidth, mContentSizeHeight, mContentOffset.x, mContentOffset.y);
 
             Log.d(TAG, "filterItems: " + visibleItems.size());
 
-            if (visibleItems.isEmpty()) {
-                removeAndRecycleAllViews(recycler);
-                return;
-            }
-
-            lowerSectionBound = visibleItems.get(0).getSection();
-            upperSectionBound = visibleItems.get(visibleItems.size() - 1).getSection();
 
         } else {
+            mLayout.filterItems(visibleItems, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
+                    mContentSizeWidth, mContentSizeHeight, mContentOffset.x, mContentOffset.y);
 
-            List<FlexItem> items = new LinkedList<>();
-
-            boolean vertical = mOrientation == VERTICAL;
-
-            Comparator<FlexSection, Rect> comparator = vertical ?
-                    new FlexSection.RectVerticalComparator() :
-                    new FlexSection.RectHorizontalComparator();
-
-            lowerSectionBound = Algorithm.lowerBound(mSections, visibleRect, comparator);
-            if (lowerSectionBound == -1) {
-                removeAndRecycleAllViews(recycler);
-                return;
-            }
-            upperSectionBound = Algorithm.upperBound(mSections, visibleRect, comparator);
-
-            mSections.get(lowerSectionBound).mergeItemsInRect(items, visibleRect, vertical);
-            for (int sectionIndex = lowerSectionBound + 1; sectionIndex <= upperSectionBound - 1; sectionIndex++) {
-                mSections.get(sectionIndex).mergeItems(items);
-            }
-            if (upperSectionBound > lowerSectionBound) {
-                mSections.get(upperSectionBound).mergeItemsInRect(items, visibleRect, vertical);
-            }
-
-            LayoutItem layoutItem = null;
-            for (FlexItem flexItem : items) {
-                layoutItem = new LayoutItem(flexItem);
-
-                visibleItems.add(layoutItem);
-            }
-
-            // Go through sticky items first and put all visible and REALLY-STICKY items into a TreeMap of visibleStickyItems
-            // with their sticky position, we will add the views of those STICKY items at last to make them higher in z-coordination
-            // TODO: delay callback after layout?
-
-            Point stickyItemPoint = new Point(getPaddingLeft(), getPaddingTop());
-            Rect rect = new Rect();
-            Point origin = new Point();
-            Point oldOrigin = new Point();
-
-            Iterator it = mStickyItems.entrySet().iterator();
-            while (it.hasNext()) {
-
-                SortedMap.Entry<SectionPosition, Boolean> entry = (SortedMap.Entry<SectionPosition, Boolean>)it.next();
-
-                int sectionIndex = entry.getKey().section;
-                FlexSection section = mSections.get(sectionIndex);
-
-                if (sectionIndex > upperSectionBound || (!mStackedStickyItems && sectionIndex < lowerSectionBound)) {
-                    if (entry.getValue().booleanValue()) {
-                        entry.setValue(Boolean.FALSE);
-                        mLayoutCallback.onItemExitStickyMode(sectionIndex, entry.getKey().item, section.getPositionBase() + entry.getKey().item);
-                    }
-                    continue;
-                }
-
-                FlexItem item = section.getItem(entry.getKey().item);
-                int position = item.getAdapterPosition();
-
-                item.getFrameOnView(rect);
-                rect.offset(-mContentOffset.x, -mContentOffset.y);
-                int stickyItemSize = rect.height();
-                origin.set(rect.left, rect.top);
-                oldOrigin.set(origin.x, origin.y);
-
-                if (mStackedStickyItems) {
-                    // origin.y = Math.max(mContentOffset.y + stickyItemPoint.y, origin.y);
-                    origin.y = Math.max(stickyItemPoint.y, origin.y);
-
-                    rect.offsetTo(origin.x, origin.y);
-                } else {
-                    Rect rectSection = section.getFrame();
-                    origin.y = Math.min(
-                            Math.max(getPaddingTop() + getPaddingTop(), (rectSection.top - stickyItemSize)),
-                            (rectSection.bottom - stickyItemSize)
-                    );
-
-                    rect.offsetTo(origin.x, origin.y);
-                }
-
-                // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
-                // Otherwise, we check the top of sticky header
-                boolean stickyMode = entry.getValue().booleanValue() ? ((mContentOffset.y + getPaddingTop() < oldOrigin.y) ? false : true) : ((rect.top > oldOrigin.y) ? true : false);
-
-                if (stickyMode != entry.getValue().booleanValue()) {
-                    // Notify caller if changed
-                    entry.setValue(Boolean.valueOf(stickyMode));
-                    if (stickyMode) {
-                        mLayoutCallback.onItemEnterStickyMode(sectionIndex, item.getItem(), position, oldOrigin);
-                    } else {
-                        mLayoutCallback.onItemExitStickyMode(sectionIndex, item.getItem(), position);
-                    }
-                }
-
-                if (stickyMode) {
-                    layoutItem = new LayoutItem(item);
-                    layoutItem.getFrame().set(rect);
-                    layoutItem.setInSticky(true);
-
-                    visibleStickyItems.put(layoutItem, null);
-                    int itemIndex = Collections.binarySearch(visibleItems, layoutItem);
-                    if (itemIndex < 0) {
-                        visibleItems.add(-itemIndex - 1, layoutItem);
-                    } else {
-                        visibleItems.get(itemIndex).setInSticky(true);
-                    }
-
-                    // layoutAttributes.zIndex = 1024 + it->first;  //
-                    stickyItemPoint.y += stickyItemSize;
-                }
-
-            }
         }
 
-
+        if (visibleItems.isEmpty())
+        {
+            removeAndRecycleAllViews(recycler);
+            return;
+        }
 
         if (DEBUG) {
+
+            aa++;
+            for (LayoutItem layoutItem : visibleItems) {
+                Log.d("LDBG", "filterItems " + aa + ":[" + layoutItem.getSection() + "-" + layoutItem.getItem() +
+                    "] rect=" + layoutItem.getFrame().toShortString() + (layoutItem.isInSticky() ? " Sticky" : ""));
+            }
+
             debugEndTime = System.nanoTime();
 
             Log.d("PERF", "fillRect filter takes: " + (debugEndTime - debugStartTime) / 1000000 + "ms");
@@ -761,39 +678,17 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         if (mLayoutInvalidated) {
 
-            mContentSizeWidth = getWidth();
-            Rect bounds = new Rect(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(), getHeight() - getPaddingBottom());
-
             if (NATIVE) {
-                prepareLayout(mLayout, mContentSizeWidth, getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
+                prepareLayout(mNativeLayout, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
             }
             else {
-                mSections.clear();
+                mLayout.prepareLayout(getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
+            }
 
-                int sectionCount = mLayoutCallback.getNumberOfSections();
-                int positionBase = 0;
-
-                Rect rectOfSection = new Rect(getPaddingLeft(), getPaddingTop(), getPaddingLeft() + bounds.right, 0);
-                for (int sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++) {
-                    int layoutMode = mLayoutCallback.getNumberOfItemsInSection(sectionIndex);
-
-                    FlexSection section = layoutMode == WATERFLAALAYOUT ? new FlexWaterfallSection(sectionIndex,  positionBase, mLayoutCallback, rectOfSection) : new FlexFlowSection(sectionIndex,  positionBase, mLayoutCallback, rectOfSection);
-                    section.prepareLayout(bounds);
-
-                    mSections.add(section);
-
-                    positionBase += section.getItemCount();
-                    rectOfSection.bottom = rectOfSection.top + section.getFrame().height();
-                    rectOfSection.top = rectOfSection.bottom;
-                }
-
-                mContentSizeHeight = (int)rectOfSection.bottom + getPaddingBottom();
-
-                mLayoutInvalidated = false;
-                // As we have done a complete layout, pending updates can be removed directly
-                if (mPendingUpdateItems != null) {
-                    mPendingUpdateItems.clear();
-                }
+            mLayoutInvalidated = false;
+            // As we have done a complete layout, pending updates can be removed directly
+            if (mPendingUpdateItems != null) {
+                mPendingUpdateItems.clear();
             }
         }
         else if (mPendingUpdateItems != null && !mPendingUpdateItems.isEmpty()) {
@@ -804,6 +699,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                     case UpdateActionReload:
                         break;
                     case UpdateActionDelete:
+                        /*
                         int sectionIndex = sectionFromAdapterPosition(updateItem.getPostionStart());
                         if (sectionIndex != -1) {
                             FlexSection section = mSections.get(sectionIndex);
@@ -821,6 +717,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                                 }
                             }
                         }
+                         */
                         break;
                 }
             }
@@ -862,7 +759,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 new LinearSmoothScroller(recyclerView.getContext()) {
                     @Override
                     public PointF computeScrollVectorForPosition(int targetPosition) {
-                        return FlexLayoutManager.this.computeScrollVectorForPosition(targetPosition);
+                        return FlexLayoutManager.this.mLayout.computeScrollVectorForPosition(targetPosition);
                     }
 
                     @Override
@@ -870,7 +767,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                         // final int dx = calculateDxToMakeVisible(targetView, getHorizontalSnapPreference());
                         // final int dy = calculateDyToMakeVisible(targetView, getVerticalSnapPreference());
                         // this.getTargetPosition()
-                        final PointF d = FlexLayoutManager.this.computeScrollDistanceForPosition(this.getTargetPosition());
+                        final PointF d = FlexLayoutManager.this.mLayout.computeScrollDistanceForPosition(this.getTargetPosition());
                         final int distance = (int) Math.sqrt(d.x * d.x + d.y * d.y);
                         int dx = (int)d.x;
                         int dy = (int)d.y;
@@ -885,99 +782,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         startSmoothScroll(linearSmoothScroller);
     }
 
-    public PointF computeScrollVectorForPosition(int targetPosition) {
 
-        FlexItem targetItem = findItem(targetPosition);
-        if (targetItem == null) {
-            return null;
-        }
-        Rect rect = new Rect();
-        targetItem.getFrameOnView(rect);
-        if (mOrientation == HORIZONTAL) {
-            int targetContentOffset = rect.left;
-            return new PointF(mContentOffset.x < targetContentOffset ? 1 : -1, 0);
-        } else {
-            int targetContentOffset = rect.top;
-            return new PointF(0, mContentOffset.y < targetContentOffset ? 1 : -1);
-        }
-    }
-
-    public PointF computeScrollDistanceForPosition(int targetPosition) {
-        return computeScrollDistanceForPosition(targetPosition, null);
-    }
-
-    public PointF computeScrollDistanceForPosition(int targetPosition, Point offset) {
-
-        PointF distance = new PointF();
-        FlexItem targetItem = findItem(targetPosition);
-
-
-        if (targetItem == null) {
-            return distance;
-        }
-
-        Point stickyItemPoint = new Point(getPaddingLeft(), getPaddingTop());
-        Rect rect = new Rect();
-        Point origin = new Point();
-        Point oldOrigin = new Point();
-        Iterator it = mStickyItems.entrySet().iterator();
-        while (it.hasNext()) {
-
-            SortedMap.Entry<SectionPosition, Boolean> entry = (SortedMap.Entry<SectionPosition, Boolean>)it.next();
-
-            int sectionIndex = entry.getKey().section;
-            FlexSection section = mSections.get(sectionIndex);
-
-            if (sectionIndex > targetItem.getSection() || (!mStackedStickyItems && sectionIndex < targetItem.getSection())) {
-                continue;
-            }
-
-            FlexItem item = section.getItem(entry.getKey().item);
-            int position = item.getAdapterPosition();
-
-            item.getFrameOnView(rect);
-            rect.offset(-mContentOffset.x, -mContentOffset.y);
-            int stickyItemSize = rect.height();
-            origin.set(rect.left, rect.top);
-
-            if (mStackedStickyItems) {
-                // origin.y = Math.max(mContentOffset.y + stickyItemPoint.y, origin.y);
-                origin.y = Math.max(stickyItemPoint.y, origin.y);
-
-                rect.offsetTo(origin.x, origin.y);
-            } else {
-                Rect rectSection = section.getFrame();
-                origin.y = Math.min(
-                        Math.max(getPaddingTop() + getPaddingTop(), (rectSection.top - stickyItemSize)),
-                        (rectSection.bottom - stickyItemSize)
-                );
-
-                rect.offsetTo(origin.x, origin.y);
-            }
-
-            // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
-            // Otherwise, we check the top of sticky header
-            boolean stickyMode = entry.getValue().booleanValue() ? ((mContentOffset.y + getPaddingTop() < oldOrigin.y) ? false : true) : ((rect.top > oldOrigin.y) ? true : false);
-            if (stickyMode) {
-                // layoutAttributes.zIndex = 1024 + it->first;  //
-                stickyItemPoint.y += stickyItemSize;
-            }
-        }
-
-        targetItem.getFrameOnView(rect);
-        if (mOrientation == HORIZONTAL) {
-            distance.x = rect.left - mContentOffset.x - stickyItemPoint.x;
-        } else {
-            distance.y = rect.top - mContentOffset.y - stickyItemPoint.y;
-        }
-
-        if (offset != null) {
-            distance.x += offset.x;
-            distance.y += offset.y;
-        }
-
-        return distance;
-    }
 
     public void onAttachedToWindow (RecyclerView view) {
         super.onAttachedToWindow(view);
@@ -1033,50 +838,24 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         // mPendingUpdateItems.add(new UpdateItem(UpdateActionReload, positionStart, itemCount));
     }
 
-    private Rect getVisibleRect() {
-        int x = mContentOffset.x;
-        int y = mContentOffset.y;
-        return new Rect(x, y, x + getWidth(), y + getHeight());
-    }
-
     public int getVerticalVisibleHeight() {
         return getHeight() - getPaddingTop() - getPaddingBottom();
     }
 
-    private int sectionFromAdapterPosition(int position) {
-        Comparator<FlexSection, Integer> comparator = new Comparator<FlexSection, Integer>() {
-            @Override
-            public int compare(FlexSection o1, Integer o2) {
-                return o1.getPositionBase() > o2.intValue() ? 1 : (o1.getPositionBase() + o1.getItemCount() < o2.intValue() ? - 1 : 0);
-            }
-        };
-
-        return Algorithm.upperBound(mSections, new Integer(position), comparator);
+    protected void setContentSize(int width, int height) {
+        mContentSizeWidth = width;
+        mContentSizeHeight = height;
     }
 
-    FlexItem findItem(int position) {
-        FlexSection section = null;
-        int item = position;
-        for (int sectionIndex = 0; sectionIndex < mSections.size(); sectionIndex++) {
-            section = mSections.get(sectionIndex);
-            if (item >= section.getItemCount()) {
-                item -= section.getItemCount();
-                continue;
-            }
 
-            break;
-        }
-
-        return (section == null || item >= section.getItemCount()) ? null : section.getItem(item);
-    }
-
-    protected long mLayout;
     protected native long createLayout(LayoutCallback layoutCallback);
+    protected native void addStickyItem(long layout, int section, int item);
+    protected native void clearStickyItems(long layout);
+    protected native void setStackedStickyItems(long layout, boolean stackedStickyItems);
+    protected native boolean isStackedStickyItems(long layout);
     protected native void prepareLayout(long layout, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom);
-    protected native void filterItems(long layout, List<LayoutItem> items, int witth, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
+    protected native void filterItems(long layout, List<LayoutItem> items, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
     protected native void releaseLayout(long layout);
-
-
 
     static class SavedState implements Parcelable {
         int mAnchorPosition;
@@ -1145,6 +924,297 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         public int getItemCount() {
             return mItemCount;
+        }
+
+    }
+
+    public final class LayoutImpl {
+        private LayoutCallback mLayoutCallback;
+        private List<FlexSection> mSections;
+        private boolean mStackedStickyItems = true;
+        private SortedMap<SectionPosition, Boolean> mStickyItems;
+
+        public LayoutImpl(LayoutCallback layoutCallback) {
+            mLayoutCallback = layoutCallback;
+
+            mSections = new ArrayList<>();
+            mStickyItems = new TreeMap<>();
+
+        }
+
+        public void addStickyItem(int section, int item) {
+            mStickyItems.put(new SectionPosition(section, item), Boolean.FALSE);
+        }
+        public void clearStickyItems() {
+            mStickyItems.clear();
+        }
+        public void setStackedStickyItems(boolean stackedStickyItems) {
+            mStackedStickyItems = stackedStickyItems;
+        }
+        public boolean isStackedStickyItems() {
+            return mStackedStickyItems;
+        }
+
+
+        public int sectionFromAdapterPosition(int position) {
+            Comparator<FlexSection, Integer> comparator = new Comparator<FlexSection, Integer>() {
+                @Override
+                public int compare(FlexSection o1, Integer o2) {
+                    return o1.getPositionBase() > o2.intValue() ? 1 : (o1.getPositionBase() + o1.getItemCount() < o2.intValue() ? - 1 : 0);
+                }
+            };
+
+            return Algorithm.upperBound(mSections, new Integer(position), comparator);
+        }
+
+        public FlexItem findItem(int position) {
+            FlexSection section = null;
+            int item = position;
+            for (int sectionIndex = 0; sectionIndex < mSections.size(); sectionIndex++) {
+                section = mSections.get(sectionIndex);
+                if (item >= section.getItemCount()) {
+                    item -= section.getItemCount();
+                    continue;
+                }
+
+                break;
+            }
+
+            return (section == null || item >= section.getItemCount()) ? null : section.getItem(item);
+        }
+
+        public PointF computeScrollVectorForPosition(int targetPosition) {
+
+            FlexItem targetItem = findItem(targetPosition);
+            if (targetItem == null) {
+                return null;
+            }
+            Rect rect = new Rect();
+            targetItem.getFrameOnView(rect);
+            if (mOrientation == HORIZONTAL) {
+                int targetContentOffset = rect.left;
+                return new PointF(mContentOffset.x < targetContentOffset ? 1 : -1, 0);
+            } else {
+                int targetContentOffset = rect.top;
+                return new PointF(0, mContentOffset.y < targetContentOffset ? 1 : -1);
+            }
+        }
+
+        public PointF computeScrollDistanceForPosition(int targetPosition) {
+            return computeScrollDistanceForPosition(targetPosition, null);
+        }
+
+        public PointF computeScrollDistanceForPosition(int targetPosition, Point offset) {
+
+            PointF distance = new PointF();
+            FlexItem targetItem = findItem(targetPosition);
+
+            if (targetItem == null) {
+                return distance;
+            }
+
+            Point stickyItemPoint = new Point(getPaddingLeft(), getPaddingTop());
+            Rect rect = new Rect();
+            Point origin = new Point();
+            Point oldOrigin = new Point();
+            Iterator it = mStickyItems.entrySet().iterator();
+            while (it.hasNext()) {
+
+                SortedMap.Entry<SectionPosition, Boolean> entry = (SortedMap.Entry<SectionPosition, Boolean>)it.next();
+
+                int sectionIndex = entry.getKey().section;
+                FlexSection section = mSections.get(sectionIndex);
+
+                if (sectionIndex > targetItem.getSection() || (!mStackedStickyItems && sectionIndex < targetItem.getSection())) {
+                    continue;
+                }
+
+                FlexItem item = section.getItem(entry.getKey().item);
+                int position = item.getAdapterPosition();
+
+                item.getFrameOnView(rect);
+                rect.offset(-mContentOffset.x, -mContentOffset.y);
+                int stickyItemSize = rect.height();
+                origin.set(rect.left, rect.top);
+
+                if (mStackedStickyItems) {
+                    // origin.y = Math.max(mContentOffset.y + stickyItemPoint.y, origin.y);
+                    origin.y = Math.max(stickyItemPoint.y, origin.y);
+
+                    rect.offsetTo(origin.x, origin.y);
+                } else {
+                    Rect rectSection = section.getFrame();
+                    origin.y = Math.min(
+                            Math.max(getPaddingTop() + getPaddingTop(), (rectSection.top - stickyItemSize)),
+                            (rectSection.bottom - stickyItemSize)
+                    );
+
+                    rect.offsetTo(origin.x, origin.y);
+                }
+
+                // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
+                // Otherwise, we check the top of sticky header
+                boolean stickyMode = entry.getValue().booleanValue() ? ((mContentOffset.y + getPaddingTop() < oldOrigin.y) ? false : true) : ((rect.top > oldOrigin.y) ? true : false);
+                if (stickyMode) {
+                    // layoutAttributes.zIndex = 1024 + it->first;  //
+                    stickyItemPoint.y += stickyItemSize;
+                }
+            }
+
+            targetItem.getFrameOnView(rect);
+            if (mOrientation == HORIZONTAL) {
+                distance.x = rect.left - mContentOffset.x - stickyItemPoint.x;
+            } else {
+                distance.y = rect.top - mContentOffset.y - stickyItemPoint.y;
+            }
+
+            if (offset != null) {
+                distance.x += offset.x;
+                distance.y += offset.y;
+            }
+
+            return distance;
+        }
+
+        public void prepareLayout(int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom) {
+            mSections.clear();
+
+            Rect bounds = new Rect(paddingLeft, paddingTop, width - paddingRight, height - paddingBottom);
+
+            int sectionCount = mLayoutCallback.getNumberOfSections();
+            int positionBase = 0;
+
+            Rect rectOfSection = new Rect(getPaddingLeft(), getPaddingTop(), getPaddingLeft() + bounds.right, 0);
+            for (int sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++) {
+                int layoutMode = mLayoutCallback.getNumberOfItemsInSection(sectionIndex);
+
+                FlexSection section = layoutMode == WATERFLAALAYOUT ? new FlexWaterfallSection(sectionIndex,  positionBase, mLayoutCallback, rectOfSection) : new FlexFlowSection(sectionIndex,  positionBase, mLayoutCallback, rectOfSection);
+                section.prepareLayout(bounds);
+
+                mSections.add(section);
+
+                positionBase += section.getItemCount();
+                rectOfSection.bottom = rectOfSection.top + section.getFrame().height();
+                rectOfSection.top = rectOfSection.bottom;
+            }
+
+            FlexLayoutManager.this.setContentSize(width,rectOfSection.bottom + paddingBottom);
+        }
+
+        public void filterItems(List<LayoutItem> visibleItems, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY) {
+            List<FlexItem> items = new LinkedList<>();
+
+            boolean vertical = mOrientation == VERTICAL;
+            final Rect visibleRect = new Rect(contentOffsetX, contentOffsetY, contentOffsetX + width, contentOffsetY + height);
+
+            Comparator<FlexSection, Rect> comparator = vertical ?
+                    new FlexSection.RectVerticalComparator() :
+                    new FlexSection.RectHorizontalComparator();
+
+            int lowerSectionBound = Algorithm.lowerBound(mSections, visibleRect, comparator);
+            if (lowerSectionBound == -1) {
+                return;
+            }
+            int upperSectionBound = Algorithm.upperBound(mSections, visibleRect, comparator);
+
+            mSections.get(lowerSectionBound).mergeItemsInRect(items, visibleRect, vertical);
+            for (int sectionIndex = lowerSectionBound + 1; sectionIndex <= upperSectionBound - 1; sectionIndex++) {
+                mSections.get(sectionIndex).mergeItems(items);
+            }
+            if (upperSectionBound > lowerSectionBound) {
+                mSections.get(upperSectionBound).mergeItemsInRect(items, visibleRect, vertical);
+            }
+
+            LayoutItem layoutItem = null;
+            for (FlexItem flexItem : items) {
+                layoutItem = new LayoutItem(flexItem);
+
+                visibleItems.add(layoutItem);
+            }
+
+            SortedMap<LayoutItem, View> visibleStickyItems = new TreeMap<>();
+
+            // Go through sticky items first and put all visible and REALLY-STICKY items into a TreeMap of visibleStickyItems
+            // with their sticky position, we will add the views of those STICKY items at last to make them higher in z-coordination
+            // TODO: delay callback after layout?
+
+            Point stickyItemPoint = new Point(getPaddingLeft(), getPaddingTop());
+            Rect rect = new Rect();
+            Point origin = new Point();
+            Point oldOrigin = new Point();
+
+            Iterator it = mStickyItems.entrySet().iterator();
+            while (it.hasNext()) {
+
+                SortedMap.Entry<SectionPosition, Boolean> entry = (SortedMap.Entry<SectionPosition, Boolean>)it.next();
+
+                int sectionIndex = entry.getKey().section;
+                FlexSection section = mSections.get(sectionIndex);
+
+                if (sectionIndex > upperSectionBound || (!mStackedStickyItems && sectionIndex < lowerSectionBound)) {
+                    if (entry.getValue().booleanValue()) {
+                        entry.setValue(Boolean.FALSE);
+                        mLayoutCallback.onItemExitStickyMode(sectionIndex, entry.getKey().item, section.getPositionBase() + entry.getKey().item);
+                    }
+                    continue;
+                }
+
+                FlexItem item = section.getItem(entry.getKey().item);
+                int position = item.getAdapterPosition();
+
+                item.getFrameOnView(rect);
+                rect.offset(-mContentOffset.x, -mContentOffset.y);
+                int stickyItemSize = rect.height();
+                origin.set(rect.left, rect.top);
+                oldOrigin.set(origin.x, origin.y);
+
+                if (mStackedStickyItems) {
+                    // origin.y = Math.max(mContentOffset.y + stickyItemPoint.y, origin.y);
+                    origin.y = Math.max(stickyItemPoint.y, origin.y);
+
+                    rect.offsetTo(origin.x, origin.y);
+                } else {
+                    Rect rectSection = section.getFrame();
+                    origin.y = Math.min(
+                            Math.max(getPaddingTop(), (rectSection.top - stickyItemSize)),
+                            (rectSection.bottom - stickyItemSize)
+                    );
+
+                    rect.offsetTo(origin.x, origin.y);
+                }
+
+                // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
+                // Otherwise, we check the top of sticky header
+                boolean stickyMode = entry.getValue().booleanValue() ? ((mContentOffset.y + getPaddingTop() < oldOrigin.y) ? false : true) : ((rect.top > oldOrigin.y) ? true : false);
+
+                if (stickyMode != entry.getValue().booleanValue()) {
+                    // Notify caller if changed
+                    entry.setValue(Boolean.valueOf(stickyMode));
+                    if (stickyMode) {
+                        mLayoutCallback.onItemEnterStickyMode(sectionIndex, item.getItem(), position, oldOrigin);
+                    } else {
+                        mLayoutCallback.onItemExitStickyMode(sectionIndex, item.getItem(), position);
+                    }
+                }
+
+                if (stickyMode) {
+                    layoutItem = new LayoutItem(item);
+                    layoutItem.getFrame().set(rect);
+                    layoutItem.setInSticky();
+
+                    visibleStickyItems.put(layoutItem, null);
+                    int itemIndex = Collections.binarySearch(visibleItems, layoutItem);
+                    if (itemIndex < 0) {
+                        visibleItems.add(-itemIndex - 1, layoutItem);
+                    } else {
+                        visibleItems.get(itemIndex).setInSticky();
+                    }
+
+                    // layoutAttributes.zIndex = 1024 + it->first;  //
+                    stickyItemPoint.y += stickyItemSize;
+                }
+
+            }
         }
 
     }

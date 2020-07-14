@@ -270,7 +270,7 @@ public class MainActivityHelper {
         } else if (layoutManager instanceof FlexLayoutManager) {
             FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
             // linearLayoutManager.setInitialPrefetchItemCount(0);
-            newLayoutManager = new FlexLayoutManager(recyclerView.getContext(), flexLayoutManager.getOrientation(), flexLayoutManager.getReverseLayout()) {
+            newLayoutManager = new FlexLayoutManager(recyclerView.getContext(), flexLayoutManager.getOrientation(), flexLayoutManager.getReverseLayout(), flexLayoutManager.getLayoutCallback()) {
                 @Override
                 public boolean canScrollVertically() {
                     return false;

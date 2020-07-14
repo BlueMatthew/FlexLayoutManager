@@ -72,7 +72,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {8000, 2},
+            {8, 2},
             {90, 0},
             {20, 0},
             {120, 0},
@@ -503,7 +503,7 @@ public class MainActivityDataSource {
 
         // Test 2
         section = mPages[0].sections[SECTION_INDEX_TEST2];
-        section.insets = Insets.of(10, 10, 10, 10);
+        // section.insets = Insets.of(10, 10, 10, 10);
         section.lineSpacing = 20;
         section.interitemSpacing = 20;
         colorIdx += 4;
