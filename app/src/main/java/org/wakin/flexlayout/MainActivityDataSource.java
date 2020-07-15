@@ -72,7 +72,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {8, 2},
+            {8000, 2},
             {90, 0},
             {20, 0},
             {120, 0},

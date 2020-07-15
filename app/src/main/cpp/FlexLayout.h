@@ -14,7 +14,7 @@
 #include "LayoutAdapter.h"
 
 
-#ifndef NDK_DEBUG
+#ifdef NDK_DEBUG
 #include <android/log.h>
 
 #define TAG "NDK"
@@ -97,7 +97,7 @@ public:
         return m_stackedStickyItems;
     }
 
-    void prepareLayout(const Size &size, const Insets &padding);
+    void prepareLayout(const LayoutInfo *layoutInfo);
     void updateItems(int action, int itemStart, int itemCount);
 
     // LayoutItem::data == 1, indicates that the item is sticky

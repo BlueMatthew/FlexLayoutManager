@@ -1,6 +1,20 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        release {
+            storeFile file(KEYSTORE_PATH)
+            storePassword KEYSTORE_PASSWORD
+            keyAlias = KEY_NAME
+            keyPassword KEY_PASSWORD
+        }
+        debug {
+            storeFile file(KEYSTORE_PATH)
+            storePassword KEYSTORE_PASSWORD
+            keyAlias = KEY_NAME
+            keyPassword KEY_PASSWORD
+        }
+    }
     compileSdkVersion 28
     defaultConfig {
         applicationId "org.wakin.flexlayoutmanager"
@@ -19,6 +33,11 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            debuggable = false
+        }
+        debug {
+            jniDebuggable = true
         }
     }
     externalNativeBuild {

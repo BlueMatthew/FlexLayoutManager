@@ -8,7 +8,7 @@
 #define USING_CACHE_ON_ITEMSIZE
 #define CACHE_NUMBER_OF_ITEMS   1024
 
-LayoutAdapter::LayoutAdapter(JNIEnv* env, jobject obj, jobject callback) : m_env(env), m_cachedItemStart(0)
+LayoutAdapter::LayoutAdapter(JNIEnv* env, jobject obj, jobject callback) : m_env(env), m_layoutInfo(NULL), m_cachedItemStart(0)
 {
     m_layoutMnager = m_env->NewGlobalRef(obj);
     m_callback = m_env->NewGlobalRef(callback);
@@ -16,7 +16,7 @@ LayoutAdapter::LayoutAdapter(JNIEnv* env, jobject obj, jobject callback) : m_env
     jclass layoutManagerClass = m_env->GetObjectClass(obj);
 
     // Methods on LayoutManager
-    m_contentHeightFid = m_env->GetFieldID(layoutManagerClass, "mContentSizeHeight", "I");
+    m_setContentSizeMid = m_env->GetMethodID(layoutManagerClass, "setContentSize", "(II)V");
     m_orientationMid = m_env->GetMethodID(layoutManagerClass, "getOrientation", "()I");
     m_env->DeleteLocalRef(layoutManagerClass);
 
@@ -91,29 +91,45 @@ LayoutAdapter::~LayoutAdapter()
     m_env->DeleteGlobalRef(m_layoutMnager);
 }
 
-void LayoutAdapter::updateContentHeight(int height)
+void LayoutAdapter::updateContentSize(int width, int height)
 {
-    m_env->SetIntField(m_layoutMnager, m_contentHeightFid, height);
+    m_env->CallVoidMethod(m_layoutMnager, m_setContentSizeMid, width, height);
 }
 
 bool LayoutAdapter::isVertical() const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return 1 == m_layoutInfo->orientation;
+    }
     jint orientation = m_env->CallIntMethod(m_layoutMnager, m_orientationMid);
     return orientation == 1;
 }
 
 int LayoutAdapter::getNumberOfSections() const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->numberOfSections;
+    }
     return m_env->CallIntMethod(m_callback, m_numberOfSectionsMid);
 }
 
 int LayoutAdapter::getNumberOfItemsInSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].numberOfItems;
+    }
     return m_env->CallIntMethod(m_callback, m_numberOfItemsMid, section);
 }
 
 Insets LayoutAdapter::getInsetForSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].padding;
+    }
     jobject javaInsets = m_env->CallObjectMethod(m_callback, m_insetsMid, section);
 
     Insets insets;
@@ -129,11 +145,19 @@ Insets LayoutAdapter::getInsetForSection(int section) const
 
 int LayoutAdapter::getMinimumLineSpacingForSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].lineSpacing;
+    }
     return m_env->CallIntMethod(m_callback, m_lineSpacingMid, section);
 }
 
 int LayoutAdapter::getMinimumInteritemSpacingForSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].interitemSpacing;
+    }
     return m_env->CallIntMethod(m_callback, m_interitemSpacingMid, section);
 }
 
@@ -201,6 +225,15 @@ Size LayoutAdapter::getSizeForItem(int section, int item, bool *isFullSpan) cons
 
 bool LayoutAdapter::hasFixedItemSize(int section, Size *fixedItemSize)
 {
+    if (NULL != m_layoutInfo)
+    {
+        if (m_layoutInfo->sections[section].hasFixedItemSize && NULL != fixedItemSize)
+        {
+            *fixedItemSize = m_layoutInfo->sections[section].fixedItemSize;
+        }
+        return m_layoutInfo->sections[section].hasFixedItemSize;
+    }
+
     jboolean result = m_env->CallBooleanMethod(m_callback, m_hasFixItemSizeMid, section, m_itemSize);
     if (1 == result && NULL != fixedItemSize)
     {
@@ -212,11 +245,19 @@ bool LayoutAdapter::hasFixedItemSize(int section, Size *fixedItemSize)
 
 int LayoutAdapter::getNumberOfColumnsForSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].numberOfColumns;
+    }
     return m_env->CallIntMethod(m_callback, m_numberOfColumnsMid, section);
 }
 
 int LayoutAdapter::getLayoutModeForSection(int section) const
 {
+    if (NULL != m_layoutInfo)
+    {
+        return m_layoutInfo->sections[section].layoutMode;
+    }
     return m_env->CallIntMethod(m_callback, m_layoutModeMid, section);
 }
 
@@ -234,12 +275,13 @@ void LayoutAdapter::onItemExitStickyMode(int section, int item, int position) co
     m_env->CallVoidMethod(m_callback, m_itemExitStickyModeMid, section, item, position);
 }
 
-void LayoutAdapter::beginPreparingLayout(int cacheSize)
+void LayoutAdapter::beginPreparingLayout(const LayoutInfo *layoutInfo, int itemCacheSize)
 {
+    m_layoutInfo = layoutInfo;
     m_cachedSectionIndex = -1;
     m_cachedItemStart = -1;
     m_cachedItemCount = 0;
-    m_cachedBufferSize = cacheSize;
+    m_cachedBufferSize = itemCacheSize;
     m_cachedBuffer = new int[m_cachedBufferSize * 3];
     m_cachedJavaBuffer = (jintArray)m_env->NewGlobalRef(m_env->NewIntArray(m_cachedBufferSize * 3));
 }
@@ -254,6 +296,7 @@ void LayoutAdapter::endPreparingLayout()
     m_cachedSectionIndex = -1;
     m_cachedItemStart = -1;
     m_cachedItemCount = 0;
+    m_layoutInfo = NULL;
 }
 
 void LayoutAdapter::addLayoutItem(jobject javaList, const LayoutItem &item) const

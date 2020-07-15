@@ -16,6 +16,9 @@ private:
     jobject m_callback;
 
     // Cache
+    const LayoutInfo    *m_layoutInfo;
+
+    // Cache
     jobject             m_itemSize;
 
     mutable int         m_cachedSectionIndex;
@@ -26,7 +29,7 @@ private:
     mutable jintArray   m_cachedJavaBuffer;
 
     // LayoutCallback
-    jfieldID m_contentHeightFid;
+    jmethodID m_setContentSizeMid;
     jmethodID m_orientationMid;
     jmethodID m_numberOfSectionsMid;
     jmethodID m_layoutModeMid;
@@ -96,8 +99,8 @@ public:
     void addLayoutItem(jobject javaList, const LayoutItem &item) const;
 
 public:
-    void updateContentHeight(int height);
-    void beginPreparingLayout(int cacheSize);
+    void updateContentSize(int width, int height);
+    void beginPreparingLayout(const LayoutInfo *layoutInfo, int itemCacheSize);
     void endPreparingLayout();
 
     bool isVertical() const;

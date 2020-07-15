@@ -16,23 +16,23 @@ FlexLayout::~FlexLayout()
     clearStickyItems();
 }
 
-void FlexLayout::prepareLayout(const Size &size, const Insets &padding)
+void FlexLayout::prepareLayout(const LayoutInfo *layoutInfo)
 {
     clearSections();
+
+    m_layoutAdapter.beginPreparingLayout(layoutInfo, 128);
 
     int sectionCount = m_layoutAdapter.getNumberOfSections();
     if (sectionCount <= 0)
     {
-        m_layoutAdapter.updateContentHeight(padding.top + padding.bottom);
+        m_layoutAdapter.updateContentSize(layoutInfo->size.width, layoutInfo->padding.top + layoutInfo->padding.bottom);
         return;
     }
 
-    m_layoutAdapter.beginPreparingLayout(128);
-
-    Rect bounds(padding.left, padding.top, size.width - padding.right - padding.right, size.height - padding.top - padding.bottom);
+    Rect bounds(layoutInfo->padding.left, layoutInfo->padding.top, layoutInfo->size.width - layoutInfo->padding.right - layoutInfo->padding.right, layoutInfo->size.height - layoutInfo->padding.top - layoutInfo->padding.bottom);
     int positionBase = 0;
 
-    Rect rectOfSection(padding.left, padding.top, bounds.width(), 0);
+    Rect rectOfSection(layoutInfo->padding.left, layoutInfo->padding.top, bounds.width(), 0);
     for (int sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++) {
         int layoutMode = m_layoutAdapter.getLayoutModeForSection(sectionIndex);
         FlexSection *section = layoutMode == 1 ?
@@ -50,42 +50,10 @@ void FlexLayout::prepareLayout(const Size &size, const Insets &padding)
         // rectOfSection.size.height = 0;
     }
 
-    int contentHeight = (int)rectOfSection.bottom() + padding.bottom;
-    m_layoutAdapter.updateContentHeight(contentHeight);
+    int contentHeight = (int)rectOfSection.bottom() + layoutInfo->padding.bottom;
+    m_layoutAdapter.updateContentSize(layoutInfo->size.width, contentHeight);
 
     m_layoutAdapter.endPreparingLayout();
-
-#ifndef NDK_DEBUG
-    /*
-    for (int sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++)
-    {
-        FlexSection *section = m_sections[sectionIndex];
-
-        int itemCount = section->getItemCount();
-        Rect rectSection = section->getFrame();
-
-        for (int itemIndex = 0; itemIndex < itemCount; itemIndex++)
-        {
-            FlexItem *item = section->getItem(itemIndex);
-
-            if (NULL == item)
-            {
-                LOGD("[%d, %d] is null", sectionIndex, itemIndex);
-            }
-            else
-            {
-                const Rect rect = item->getFrame();
-
-                LOGD("[%d, %d]: section point=%d-%d point=%d-%d, size=%d-%d", sectionIndex, itemIndex, rectSection.left(), rectSection.top(), rect.left(), rect.top(), rect.width(), rect.height());
-            }
-
-        }
-    }
-     */
-
-    LOGD("PERF nativPrepareLayout ends.");
-#endif // NDK_DEBUG
-
 }
 
 void FlexLayout::updateItems(int action, int itemStart, int itemCount)

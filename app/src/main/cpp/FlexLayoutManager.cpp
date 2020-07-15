@@ -10,8 +10,6 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
         jobject javaThis,
         jobject layoutCallback) {
 
-    LOGD("createLayout starts");
-
     FlexLayout *pLayout = new FlexLayout(env, javaThis, layoutCallback);
 
     return reinterpret_cast<long>(pLayout);
@@ -88,17 +86,26 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_isStackedStickyItems(
     return result;
 }
 
+// 0: isVertical
+// 1:
+
 extern "C" JNIEXPORT void JNICALL
 Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
-        jint width, jint height, jint paddingLeft, jint paddingTop, jint paddingRight, jint paddingBottom) {
+        jintArray layoutInfo) {
 
     FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
     if (NULL != pLayout)
     {
-        pLayout->prepareLayout(Size(width, height), Insets(paddingLeft, paddingTop, paddingRight, paddingBottom));
+        int arrayLength = env->GetArrayLength(layoutInfo);
+        std::vector<int> buffer;
+        buffer.resize(arrayLength);
+        env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
+        LayoutInfo localLayoutInfo;
+        localLayoutInfo.readFromBuffer(&(buffer[1]));
+        pLayout->prepareLayout(&localLayoutInfo);
     }
 }
 

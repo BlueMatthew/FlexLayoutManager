@@ -111,4 +111,74 @@ struct LayoutItemCompare
 };
 
 
+struct SectionInfo
+{
+    int section;    // For increasemental update
+    int layoutMode;
+    Insets padding;
+    int numberOfItems;
+    int numberOfColumns;
+    int lineSpacing;
+    int interitemSpacing;
+    int hasFixedItemSize;
+    Size fixedItemSize;
+
+    int readFromBuffer(int* buffer)
+    {
+        int offset = 0;
+         section = buffer[offset++];
+        layoutMode = buffer[offset++];
+
+        padding.left = buffer[offset++];
+        padding.top = buffer[offset++];
+        padding.right = buffer[offset++];
+        padding.bottom = buffer[offset++];
+
+        numberOfItems = buffer[offset++];
+        numberOfColumns = buffer[offset++];
+        lineSpacing = buffer[offset++];
+        interitemSpacing = buffer[offset++];
+        hasFixedItemSize = buffer[offset++];
+        fixedItemSize.width = buffer[offset++];
+        fixedItemSize.height = buffer[offset++];
+
+        return offset;
+    }
+};
+
+struct LayoutInfo
+{
+    int orientation;
+    Size size;
+    Insets padding;
+    int numberOfSections;
+
+    std::vector<SectionInfo> sections;
+
+    int readFromBuffer(int* buffer)
+    {
+        int offset = 0;
+        orientation = buffer[offset++];
+        size.width = buffer[offset++];
+        size.height = buffer[offset++];
+        padding.left = buffer[offset++];
+        padding.top = buffer[offset++];
+        padding.right = buffer[offset++];
+        padding.bottom = buffer[offset++];
+        numberOfSections = buffer[offset++];
+        if (numberOfSections <= 0)
+        {
+            sections.clear();
+            return offset;
+        }
+        sections.resize(numberOfSections);
+        for (int sectionIndex = 0; sectionIndex < numberOfSections; sectionIndex++)
+        {
+            offset += sections[sectionIndex].readFromBuffer(buffer + offset);
+        }
+
+        return offset;
+    }
+};
+
 #endif //FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H

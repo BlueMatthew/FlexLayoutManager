@@ -1,9 +1,9 @@
 package org.wakin.flexlayout;
 
-// import android.support.constraint.ConstraintLayout;
 
 import android.graphics.Color;
 import android.graphics.Point;
+import android.os.Debug;
 import android.os.Handler;
 import android.util.Log;
 import android.os.Bundle;
@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AbsoluteLayout;
+import android.widget.TextView;
 
 import org.wakin.flexlayout.LayoutManager.Insets;
 import org.wakin.flexlayout.LayoutManager.LayoutCallback;
@@ -27,12 +28,11 @@ import org.wakin.flexlayout.LayoutManager.Size;
 import java.util.List;
 import java.util.HashMap;
 
-// import static org.wakin.flexlayout.MainActivityDataSource3.*;
-
 
 public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
     private static String TAG = "Flex";
+    private static boolean DEBUG = true;
     private static Object PRELOAD_FLAG = new Object();
     private static Object PRELOAD_FLAG_SWAP = new Object();
 
@@ -125,6 +125,13 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
         setFlexLayoutManager();
 
+        mRecyclerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View view, int i, int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
+
+            }
+        });
+
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override
@@ -148,6 +155,36 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
                 // layoutManager.scrollToPositionWithOffset(100, 60);
             }
         }, 5000);
+
+
+
+        long debugStartTime = 0;
+        long debugEndTime = 0;
+        if (DEBUG) {
+            debugStartTime = System.nanoTime();
+        }
+
+        Debug.startMethodTracing();
+        TextView textView1 = new TextView(this);
+        TextView textView2 = new TextView(this);
+        TextView textView3 = new TextView(this);
+        TextView textView4 = new TextView(this);
+        TextView textView5 = new TextView(this);
+        TextView textView6 = new TextView(this);
+        TextView textView7 = new TextView(this);
+        TextView textView8 = new TextView(this);
+        TextView textView9 = new TextView(this);
+        TextView textView10 = new TextView(this);
+        Debug.stopMethodTracing();
+
+        if (DEBUG) {
+
+
+            debugEndTime = System.nanoTime();
+
+            Log.d("PERF", "creating 10 TextViews takes: " + (debugEndTime - debugStartTime) / 1000000 + "ms");
+            debugStartTime = debugEndTime;
+        }
 
     }
 
