@@ -1,8 +1,10 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.LayoutManager.Elements;
 
 import android.graphics.Point;
 import android.graphics.Rect;
 
+import org.wakin.flexlayout.LayoutManager.LayoutCallback;
+import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 import org.wakin.flexlayout.util.Comparator;
 
 import java.util.ArrayList;

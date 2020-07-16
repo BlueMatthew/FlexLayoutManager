@@ -2,6 +2,9 @@ package org.wakin.flexlayout.LayoutManager;
 
 import android.graphics.Point;
 
+import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
+import org.wakin.flexlayout.LayoutManager.Graphics.Size;
+
 public interface LayoutCallback {
     int getNumberOfSections();
     int getLayoutModeForSection(int section);

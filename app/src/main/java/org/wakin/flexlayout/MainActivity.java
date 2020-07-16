@@ -3,8 +3,6 @@ package org.wakin.flexlayout;
 
 import android.graphics.Color;
 import android.graphics.Point;
-import android.os.Debug;
-import android.os.Handler;
 import android.util.Log;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,13 +15,12 @@ import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AbsoluteLayout;
-import android.widget.TextView;
 
-import org.wakin.flexlayout.LayoutManager.Insets;
+import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.LayoutCallback;
 import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
 import org.wakin.flexlayout.LayoutManager.SectionPosition;
-import org.wakin.flexlayout.LayoutManager.Size;
+import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 
 import java.util.List;
 import java.util.HashMap;
@@ -67,24 +64,55 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        View container = findViewById(R.id.recycler_view_container);
+        container.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View view, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+
+                int width = right - left;
+                int height = bottom - top;
+                int oldWidth = oldRight - oldLeft;
+                int oldHeight = oldBottom - oldTop;
+
+                if (width > 0 && height > 0) {
+
+                    if (mDataSource == null) {
+                        int boundWidth = width - mRecyclerView.getPaddingLeft() - mRecyclerView.getPaddingRight();
+                        int boundHeight = height - mRecyclerView.getPaddingTop() - mRecyclerView.getPaddingBottom();
+
+                        mDataSource = new MainActivityDataSource(mRecyclerView.getContext(), width, height);
+
+                        Log.d(TAG, "onLyaoutChange width=" + width);
+                        // mRecyclerView.requestLayout();
+
+                        mAdapter.notifyDataSetChanged();
+                        // mRecyclerView.swapAdapter(mAdapter, true);
+                    }
+                }
+            }
+        });
+
+
         Log.i("ITH", String.format("onCreate TID=%d", Thread.currentThread().getId()));
 
         mRecyclerView = findViewById(R.id.recycler_view);
+        mAdapter = new PaginationAdapter();
+        mRecyclerView.setAdapter(mAdapter);
 
         // mRecyclerView.setHasFixedSize(true);
         // mRecyclerView.getRecycledViewPool().setMaxRecycledViews(VIEW_TYPE_ITEM, 5);
         Insets padding = MainActivityDataSource.RECYCLERVIEW_PADDING;
         mRecyclerView.setPadding(padding.left, padding.top, padding.right, padding.bottom);
 
-        // setLinearLayoutManager();
-        mAdapter = new PaginationAdapter();
-        mRecyclerView.setAdapter(mAdapter);
-
         // Create ItemTouchCallback
         mCallback = new BatchSwipeItemTouchCallback(mAdapter);
         //Create ItemtouchHelper
         mTouchHelper = new ItemTouchHelper(mCallback);
         mTouchHelper.attachToRecyclerView(mRecyclerView);
+
+        setFlexLayoutManager();
+        // setLinearLayoutManager();
+
 
         mRecyclerView.addOnScrollListener (new RecyclerView.OnScrollListener() {
             int scrollState = RecyclerView.SCROLL_STATE_IDLE;
@@ -123,68 +151,9 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
             }
         });
 
-        setFlexLayoutManager();
-
-        mRecyclerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            @Override
-            public void onLayoutChange(View view, int i, int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
-
-            }
-        });
-
-        final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                int width = mRecyclerView.getMeasuredWidth() - mRecyclerView.getPaddingLeft() - mRecyclerView.getPaddingRight();
-                int height = mRecyclerView.getMeasuredHeight() - mRecyclerView.getPaddingTop() - mRecyclerView.getPaddingBottom();
-
-                mDataSource = new MainActivityDataSource(mRecyclerView.getContext(), width, height);
-
-                mAdapter.notifyDataSetChanged();
-            }
-        }, 100);
-
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                // mRecyclerView.smoothScrollToPosition(100);
-                // mRecyclerView.scrollToPosition(100);
-
-                // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();
-                // layoutManager.scrollToPositionWithOffset(100, 60);
-            }
-        }, 5000);
 
 
 
-        long debugStartTime = 0;
-        long debugEndTime = 0;
-        if (DEBUG) {
-            debugStartTime = System.nanoTime();
-        }
-
-        Debug.startMethodTracing();
-        TextView textView1 = new TextView(this);
-        TextView textView2 = new TextView(this);
-        TextView textView3 = new TextView(this);
-        TextView textView4 = new TextView(this);
-        TextView textView5 = new TextView(this);
-        TextView textView6 = new TextView(this);
-        TextView textView7 = new TextView(this);
-        TextView textView8 = new TextView(this);
-        TextView textView9 = new TextView(this);
-        TextView textView10 = new TextView(this);
-        Debug.stopMethodTracing();
-
-        if (DEBUG) {
-
-
-            debugEndTime = System.nanoTime();
-
-            Log.d("PERF", "creating 10 TextViews takes: " + (debugEndTime - debugStartTime) / 1000000 + "ms");
-            debugStartTime = debugEndTime;
-        }
 
     }
 

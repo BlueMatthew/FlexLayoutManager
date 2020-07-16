@@ -13,9 +13,9 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
-import org.wakin.flexlayout.LayoutManager.Insets;
+import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.SectionPosition;
-import org.wakin.flexlayout.LayoutManager.Size;
+import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 import org.wakin.flexlayout.cells.ItemView;
 import org.wakin.flexlayout.models.CellData;
 
@@ -72,7 +72,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {8000, 2},
+            {1000, 2},
             {90, 0},
             {20, 0},
             {120, 0},

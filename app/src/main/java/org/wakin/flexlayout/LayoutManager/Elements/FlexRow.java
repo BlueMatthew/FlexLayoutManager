@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.LayoutManager.Elements;
 
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -7,7 +7,6 @@ import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class FlexRow {

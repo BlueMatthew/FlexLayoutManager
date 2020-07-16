@@ -11,7 +11,7 @@
 #include "FlexSection.h"
 #include "FlexFlowSection.h"
 #include "FlexWaterfallSection.h"
-#include "LayoutAdapter.h"
+#include "LayoutCallbackAdapter.h"
 
 
 #ifdef NDK_DEBUG
@@ -25,10 +25,10 @@
 #endif // NDK_DEBUG
 
 
-class FlexSection : public nsflex::FlexSectionT<LayoutAdapter, int, int>
+class FlexSection : public nsflex::FlexSectionT<LayoutCallbackAdapter, int, int>
 {
 protected:
-    typedef nsflex::FlexSectionT<LayoutAdapter, int, int> BaseSection;
+    typedef nsflex::FlexSectionT<LayoutCallbackAdapter, int, int> BaseSection;
     typedef typename BaseSection::LayoutType TLayout;
     typedef typename BaseSection::IntType TInt;
     typedef typename BaseSection::CoordinateType TCoordinate;
@@ -36,7 +36,7 @@ protected:
     int m_position;
 
 public:
-    FlexSection(TLayout *layout, TInt section, const Rect& frame) : BaseSection(layout, section, frame), m_position(0)
+    FlexSection(TInt section, const Rect& frame) : BaseSection(section, frame), m_position(0)
     {
     }
 
@@ -56,26 +56,18 @@ class FlexLayout
 {
 protected:
 
-    LayoutAdapter m_layoutAdapter;
     std::vector<FlexSection *> m_sections;
-    std::vector<LayoutItem *> m_stickyItems;
+    mutable std::vector<StickyItem> m_stickyItems;
 
     bool m_stackedStickyItems;
 
 public:
-    FlexLayout(JNIEnv* env, jobject obj, jobject callback);
+    FlexLayout();
     ~FlexLayout();
-
-    void clearSections()
-    {
-        for (std::vector<FlexSection *>::iterator it = m_sections.begin(); it != m_sections.end(); delete *it, ++it);
-        m_sections.clear();
-    }
 
     void addStickyItem(int section, int item)
     {
-        LayoutItem *layoutItem = new LayoutItem(section, item);
-        m_stickyItems.push_back(layoutItem);
+        m_stickyItems.push_back(StickyItem(section, item));
         if (m_stickyItems.size() > 1)
         {
             std::sort(m_stickyItems.begin(), m_stickyItems.end());
@@ -83,7 +75,6 @@ public:
     }
     void clearStickyItems()
     {
-        for (std::vector<LayoutItem *>::iterator it = m_stickyItems.begin(); it != m_stickyItems.end(); delete *it, ++it);
         m_stickyItems.clear();
     }
 
@@ -97,19 +88,22 @@ public:
         return m_stackedStickyItems;
     }
 
-    void prepareLayout(const LayoutInfo *layoutInfo);
+    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutInfo *layoutInfo);
     void updateItems(int action, int itemStart, int itemCount);
 
     // LayoutItem::data == 1, indicates that the item is sticky
-    void getItemsInRect(jobject javaList, const Size &size, const Insets &insets, const Size &contentSize, const Point &contentOffset) const;
+    void getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Size &contentSize, const Point &contentOffset) const;
 
     jobject calcContentOffsetForScroll(int position, int itemOffsetX, int itemOffsetY) const;
 
-    void notifyItemEnterringStickyMode(int section, int item, int position, Point pt) const;
-    void notifyItemLeavingStickyMode(int section, int item, int position) const;
-
 
 protected:
+
+    inline void clearSections()
+    {
+        for (std::vector<FlexSection *>::iterator it = m_sections.begin(); it != m_sections.end(); delete *it, ++it);
+        m_sections.clear();
+    }
 
     LayoutItem *makeLayoutItem(int sectionIndex, int itemIndex) const
     {

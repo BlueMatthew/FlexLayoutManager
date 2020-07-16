@@ -2,14 +2,14 @@
 // Created by Matthew Shi on 2020-07-12.
 //
 
-#ifndef FLEXLAYOUTMANAGER_LAYOUTADAPTER_H
-#define FLEXLAYOUTMANAGER_LAYOUTADAPTER_H
+#ifndef FLEXLAYOUTMANAGER_LAYOUTCALLBACKADAPTER_H
+#define FLEXLAYOUTMANAGER_LAYOUTCALLBACKADAPTER_H
 
 #include "FlexLayoutObjects.h"
 //
 // Adapter for org.wakin.flexlayout.LayoutManager.LayoutCallback
 // And RecyclerView.LayoutManager
-class LayoutAdapter {
+class LayoutCallbackAdapter {
 private:
     JNIEnv* m_env;
     jobject m_layoutMnager;
@@ -19,7 +19,7 @@ private:
     const LayoutInfo    *m_layoutInfo;
 
     // Cache
-    jobject             m_itemSize;
+    mutable jobject             m_itemSize;
 
     mutable int         m_cachedSectionIndex;
     mutable int         m_cachedItemStart;
@@ -29,48 +29,23 @@ private:
     mutable jintArray   m_cachedJavaBuffer;
 
     // LayoutCallback
-    jmethodID m_setContentSizeMid;
-    jmethodID m_orientationMid;
-    jmethodID m_numberOfSectionsMid;
-    jmethodID m_layoutModeMid;
-    jmethodID m_numberOfItemsMid;
-    jmethodID m_numberOfColumnsMid;
-    jmethodID m_lineSpacingMid;
-    jmethodID m_interitemSpacingMid;
-    jmethodID m_insetsMid;
-    jmethodID m_itemEnterStickyModeMid;
-    jmethodID m_itemExitStickyModeMid;
-    jmethodID m_hasFixItemSizeMid;
-    jmethodID m_itemSizeMid;
-    jmethodID m_fullSpanMid;
-    jmethodID m_itemDataMid;
+    static jmethodID m_setContentSizeMid;
+    static jmethodID m_itemEnterStickyModeMid;
+    static jmethodID m_itemExitStickyModeMid;
+    static jmethodID m_itemSizeMid;
+    static jmethodID m_fullSpanMid;
+    static jmethodID m_itemDataMid;
 
     // android/graphics/Point
-    jclass      m_pointClass;
-    jmethodID   m_pointConstructorMid;
+    // jclass      m_pointClass;
+    static jmethodID   m_pointConstructorMid;
 
 
-    // org/wakin/flexlayout/LayoutManager/Size
-    // jmethodID m_constructorOfSizeMid;
-    jmethodID   m_sizeSetMid;
-    jfieldID    m_sizeWidthFid;
-    jfieldID    m_sizeHeightFid;
-
-    // org/wakin/flexlayout/LayoutManager/Insets
-    jfieldID    m_insetsLeftFid;
-    jfieldID    m_insetsTopFid;
-    jfieldID    m_insetsRightFid;
-    jfieldID    m_insetsBottomFid;
-
-    // java/util/List
-    jmethodID   m_listAddMid;
-
-    // org/wakin/flexlayout/LayoutManager/LayoutItem
-    jclass      m_layoutItemClass;
-    jmethodID   m_layoutItemConstuctMid;
-
-    jmethodID m_layoutItemconstuctMid;
-    jmethodID m_layoutItemSetOrgPtMid;
+    // org/wakin/flexlayout/LayoutManager/Graphics/Size
+    static jmethodID    m_sizeConstructorMid;
+    static jmethodID    m_sizeSetMid;
+    static jfieldID     m_sizeWidthFid;
+    static jfieldID     m_sizeHeightFid;
 
 protected:
     inline jclass getGlobalObjectClass(jobject obj)
@@ -89,19 +64,18 @@ protected:
         return globalClass;
     }
 
-
 public:
 
-    LayoutAdapter(JNIEnv* env, jobject obj, jobject callback);
-    ~LayoutAdapter();
+    LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback);
+    LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutInfo *layoutInfo);
+    ~LayoutCallbackAdapter();
 
 
-    void addLayoutItem(jobject javaList, const LayoutItem &item) const;
+    static void initLayoutEnv(JNIEnv* env, jclass layoutManagerClass, jclass callbackClass);
+    // static void addLayoutItem(jobject javaList, const LayoutItem &item);
 
 public:
-    void updateContentSize(int width, int height);
-    void beginPreparingLayout(const LayoutInfo *layoutInfo, int itemCacheSize);
-    void endPreparingLayout();
+    void updateContentSize(int width, int height) const;
 
     bool isVertical() const;
     int getNumberOfSections() const;
@@ -122,12 +96,7 @@ public:
 
     // int getPageSize();
 
-    void onItemEnterStickyMode(int section, int item, int position, Point point) const;
-    void onItemExitStickyMode(int section, int item, int position) const;
-
-
-
 };
 
 
-#endif //FLEXLAYOUTMANAGER_LAYOUTADAPTER_H
+#endif //FLEXLAYOUTMANAGER_LAYOUTCALLBACKADAPTER_H

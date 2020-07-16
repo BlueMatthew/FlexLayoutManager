@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
-import android.os.Debug;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -15,6 +14,12 @@ import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.OrientationHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.wakin.flexlayout.LayoutManager.Elements.FlexFlowSection;
+import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
+import org.wakin.flexlayout.LayoutManager.Elements.FlexSection;
+import org.wakin.flexlayout.LayoutManager.Elements.FlexWaterfallSection;
+import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
+import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -34,6 +39,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     static {
         System.loadLibrary("FlexLayout");
+        initLayoutEnv(LayoutCallback.class);
     }
 
     private static final String TAG = "FlexLayoutManager";
@@ -351,7 +357,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     @Override
     public boolean isAutoMeasureEnabled () {
         // return super.isAutoMeasureEnabled();
-        return  false;
+        return false;
     }
 
     @Override
@@ -433,7 +439,6 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         }
     }
 
-    int aa = 0;
     void fillRect(RecyclerView.Recycler recycler, RecyclerView.State state) {
 
         long debugStartTime = 0;
@@ -446,27 +451,34 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             return;
         }
 
-        List<LayoutItem> visibleItems = new ArrayList<>();
-
-
-        SortedMap<LayoutItem, View> visibleStickyItems = new TreeMap<>();
-
+        List<LayoutItem> visibleItems = null;
 
         if (NATIVE) {
 
-            filterItems(mNativeLayout, visibleItems, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
+            int[] data = filterItems(mNativeLayout, getOrientation(), getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
                     mContentSizeWidth, mContentSizeHeight, mContentOffset.x, mContentOffset.y);
 
-            Log.d(TAG, "filterItems: " + visibleItems.size());
+            List<LayoutItem> changingStickyItems = new ArrayList<>();
+            visibleItems = FlexLayoutHelper.unserializeLayoutItemAndStickyItems(data, changingStickyItems);
 
+            for (LayoutItem layoutItem : changingStickyItems) {
+                if (layoutItem.isInSticky()) {
+                    Point pt = new Point(layoutItem.getFrame().left, layoutItem.getFrame().top);
+                    mLayoutCallback.onItemEnterStickyMode(layoutItem.getSection(), layoutItem.getItem(), layoutItem.getPosition(), pt);
+                    Log.d(TAG, "EnterChange: Enter " + layoutItem.getSection() + " at: " + pt.toString());
+                } else {
+                    mLayoutCallback.onItemExitStickyMode(layoutItem.getSection(), layoutItem.getItem(), layoutItem.getPosition());
+                    Log.d(TAG, "EnterChange Leave " + layoutItem.getSection());
+                }
+            }
 
         } else {
-            mLayout.filterItems(visibleItems, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
+            visibleItems = mLayout.filterItems(getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
                     mContentSizeWidth, mContentSizeHeight, mContentOffset.x, mContentOffset.y);
 
         }
 
-        if (visibleItems.isEmpty())
+        if (visibleItems == null || visibleItems.isEmpty())
         {
             removeAndRecycleAllViews(recycler);
             return;
@@ -474,17 +486,13 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         if (DEBUG) {
 
-            aa++;
-            for (LayoutItem layoutItem : visibleItems) {
-                // Log.d("LDBG", "filterItems " + aa + ":[" + layoutItem.getSection() + "-" + layoutItem.getItem() +
-                //     "] rect=" + layoutItem.getFrame().toShortString() + (layoutItem.isInSticky() ? " Sticky" : ""));
-            }
-
             debugEndTime = System.nanoTime();
 
             Log.d("PERF", "fillRect filter takes: " + (debugEndTime - debugStartTime) / 1000000 + "ms");
             debugStartTime = debugEndTime;
         }
+
+        SortedMap<LayoutItem, View> visibleStickyItems = new TreeMap<>();
 
         // Rect rect = new Rect();
         int childCount = getChildCount();
@@ -666,53 +674,9 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         }
     }
 
-    protected int[] getLayoutInfo() {
-        int[] layoutData = null;
-
-        int numberOfSections = mLayoutCallback.getNumberOfSections();
-
-        int length = 1 + 8 + 13 * numberOfSections;
-        layoutData = new int[length];
-        int offset = 0;
-        layoutData[offset++] = length;
-        layoutData[offset++] = (getOrientation() == VERTICAL) ? 1 : 0;
-        layoutData[offset++] = getWidth();
-        layoutData[offset++] = getHeight();
-        layoutData[offset++] = getPaddingLeft();
-        layoutData[offset++] = getPaddingTop();
-        layoutData[offset++] = getPaddingRight();
-        layoutData[offset++] = getPaddingBottom();
-        layoutData[offset++] = numberOfSections;
-
-        Size fixedItemSize = new Size();
-        boolean hasFixedItemSize = false;
-        for (int sectionIndex = 0; sectionIndex < numberOfSections; sectionIndex++) {
-            int layoutMode = mLayoutCallback.getLayoutModeForSection(sectionIndex);
-            layoutData[offset++] = sectionIndex;
-            layoutData[offset++] = layoutMode;
-            Insets insets = mLayoutCallback.getInsetsForSection(sectionIndex);
-            layoutData[offset++] = insets.left;
-            layoutData[offset++] = insets.top;
-            layoutData[offset++] = insets.right;
-            layoutData[offset++] = insets.bottom;
-            layoutData[offset++] = mLayoutCallback.getNumberOfItemsInSection(sectionIndex);
-            layoutData[offset++] = mLayoutCallback.getNumberOfColumnsForSection(sectionIndex);
-            layoutData[offset++] = mLayoutCallback.getMinimumLineSpacingForSection(sectionIndex);
-            layoutData[offset++] = mLayoutCallback.getMinimumInteritemSpacingForSection(sectionIndex);
-
-            fixedItemSize.set(0, 0);
-            hasFixedItemSize = mLayoutCallback.hasFixedItemSize(sectionIndex, fixedItemSize);
-            layoutData[offset++] = hasFixedItemSize ? 1 : 0;
-            layoutData[offset++] = fixedItemSize.width;
-            layoutData[offset++] = fixedItemSize.height;
-        }
-
-        return layoutData;
-    }
-
     protected void prepareLayout(RecyclerView.Recycler recycler, RecyclerView.State state) {
 
-        if (null == mLayoutCallback) {
+        if (null == mLayoutCallback || getItemCount() == 0) {
             return;
         }
 
@@ -726,8 +690,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         if (mLayoutInvalidated) {
 
             if (NATIVE) {
-                int[] layoutInfo = getLayoutInfo();
-                prepareLayout(mNativeLayout, layoutInfo);
+                int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(this, mLayoutCallback);
+                prepareLayout(mNativeLayout, mLayoutCallback, layoutInfo);
             }
             else {
                 mLayout.prepareLayout(getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
@@ -830,24 +794,19 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         startSmoothScroll(linearSmoothScroller);
     }
 
-
-
     public void onAttachedToWindow (RecyclerView view) {
-        super.onAttachedToWindow(view);
-
         mLayoutInvalidated = true;
+        super.onAttachedToWindow(view);
     }
 
     public void onAdapterChanged(RecyclerView.Adapter oldAdapter, RecyclerView.Adapter newAdapter) {
-        super.onAdapterChanged(oldAdapter, newAdapter);
-
         mLayoutInvalidated = true;
+        super.onAdapterChanged(oldAdapter, newAdapter);
     }
 
     public void onItemsChanged (RecyclerView recyclerView) {
-        super.onItemsChanged(recyclerView);
-
         mLayoutInvalidated = true;
+        super.onItemsChanged(recyclerView);
     }
 
     public void onItemsAdded (RecyclerView recyclerView, int positionStart, int itemCount) {
@@ -896,13 +855,14 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     }
 
 
+    protected static native void initLayoutEnv(Class callbackClass);
     protected native long createLayout(LayoutCallback layoutCallback);
     protected native void addStickyItem(long layout, int section, int item);
     protected native void clearStickyItems(long layout);
     protected native void setStackedStickyItems(long layout, boolean stackedStickyItems);
     protected native boolean isStackedStickyItems(long layout);
-    protected native void prepareLayout(long layout, int[] layoutInfo);
-    protected native void filterItems(long layout, List<LayoutItem> items, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
+    protected native void prepareLayout(long layout, LayoutCallback layoutCallback, int[] layoutInfo);
+    protected native int[] filterItems(long layout, int orientation, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
     protected native void releaseLayout(long layout);
 
     static class SavedState implements Parcelable {
@@ -1149,7 +1109,9 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             FlexLayoutManager.this.setContentSize(width,rectOfSection.bottom + paddingBottom);
         }
 
-        public void filterItems(List<LayoutItem> visibleItems, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY) {
+        public List<LayoutItem> filterItems(int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY) {
+
+
             List<FlexItem> items = new LinkedList<>();
 
             boolean vertical = mOrientation == VERTICAL;
@@ -1161,7 +1123,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
             int lowerSectionBound = Algorithm.lowerBound(mSections, visibleRect, comparator);
             if (lowerSectionBound == -1) {
-                return;
+                return null;
             }
             int upperSectionBound = Algorithm.upperBound(mSections, visibleRect, comparator);
 
@@ -1172,6 +1134,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             if (upperSectionBound > lowerSectionBound) {
                 mSections.get(upperSectionBound).mergeItemsInRect(items, visibleRect, vertical);
             }
+
+            List<LayoutItem> visibleItems = new ArrayList<LayoutItem>(items.size() + 2);
 
             LayoutItem layoutItem = null;
             for (FlexItem flexItem : items) {
@@ -1263,6 +1227,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 }
 
             }
+
+            return visibleItems;
         }
 
     }

@@ -31,12 +31,12 @@ struct LayoutItem
     int position;
     Rect frame;
     int data;
-    Point origin;
+    // Point origin;
 
     LayoutItem() : section(0), item(0), position(0), data(0) {}
     LayoutItem(int s, int i) : section(s), item(i), position(0), data(0) {}
-    LayoutItem(int s, int i, int pos, const Rect &f) : section(s), item(i), position(pos), frame(f), data(0), origin(f.origin) {}
-    LayoutItem(const LayoutItem &src) : section(src.section), item(src.item), position(src.position), frame(src.frame), data(src.data), origin(src.origin) {}
+    LayoutItem(int s, int i, int pos, const Rect &f) : section(s), item(i), position(pos), frame(f), data(0) {}
+    LayoutItem(const LayoutItem &src) : section(src.section), item(src.item), position(src.position), frame(src.frame), data(src.data) {}
     LayoutItem(const LayoutItem *src) : LayoutItem(*src) {}
 
 
@@ -68,21 +68,21 @@ struct LayoutItem
         this->position = position;
         this->frame = frame;
         this->data = data;
-        this->origin = frame.origin;
+        // this->origin = frame.origin;
     }
 
     void set(int position, const Rect &frame)
     {
         this->position = position;
         this->frame = frame;
-        this->origin = frame.origin;
+        // this->origin = frame.origin;
     }
 
     void set(const LayoutItem &other)
     {
         position = other.position;
         frame = other.frame;
-        origin = other.origin;
+        // origin = other.origin;
         data = other.data;
     }
 
@@ -107,6 +107,48 @@ struct LayoutItemCompare
     bool operator() ( const LayoutItem* lhs, const LayoutItem* rhs) const
     {
         return lhs->section < rhs->section || (lhs->section == rhs->section && lhs->item < rhs->item);
+    }
+};
+
+
+struct StickyItem
+{
+    int section;
+    int item;
+    int position;
+    bool inSticky;
+
+    StickyItem(int s, int i) : section(s), item(i), position(0), inSticky(false)
+    {
+    }
+
+    StickyItem(const StickyItem& src) : section(src.section), item(src.item), position(src.position), inSticky(src.inSticky)
+    {
+    }
+
+    bool operator==(const StickyItem &other)
+    {
+        if (this == &other) return true;
+        return section == other.section && item == other.item;
+    }
+
+    bool operator!=(const StickyItem &other)
+    {
+        return !(*this == other);
+    }
+
+    bool operator<(const StickyItem &other)
+    {
+        return (section < other.section) || ((section == other.section) && item == other.item);
+    }
+
+};
+
+struct LayoutStickyItemCompare
+{
+    bool operator() ( const LayoutItem &lhs, const StickyItem &rhs) const
+    {
+        return lhs.section < rhs.section || (lhs.section == rhs.section && lhs.item < rhs.item);
     }
 };
 
@@ -152,6 +194,7 @@ struct LayoutInfo
     Size size;
     Insets padding;
     int numberOfSections;
+    int sectionStart;
 
     std::vector<SectionInfo> sections;
 
@@ -166,6 +209,7 @@ struct LayoutInfo
         padding.right = buffer[offset++];
         padding.bottom = buffer[offset++];
         numberOfSections = buffer[offset++];
+        sectionStart = buffer[offset++];
         if (numberOfSections <= 0)
         {
             sections.clear();

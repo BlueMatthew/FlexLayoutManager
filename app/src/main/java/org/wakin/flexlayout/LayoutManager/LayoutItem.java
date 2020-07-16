@@ -1,7 +1,8 @@
 package org.wakin.flexlayout.LayoutManager;
 
-import android.graphics.Point;
 import android.graphics.Rect;
+
+import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
 
 import java.util.List;
 
@@ -9,10 +10,14 @@ public class LayoutItem implements Comparable<LayoutItem> {
 
     private int mSection;
     private int mItem;
-    private int mData;
-    private Rect mFrame;
     private int mPosition = 0;
-    private Point mOroginalPoint = null;
+    private Rect mFrame;
+    private int mData;
+    // private Point mOroginalPoint = null;
+
+    public LayoutItem() {
+        this(0, 0, 0);
+    }
 
     public LayoutItem(int section, int item, int position) {
         mSection = section;
@@ -42,6 +47,10 @@ public class LayoutItem implements Comparable<LayoutItem> {
         mFrame = new Rect(left, top, right, bottom);
     }
 
+    public LayoutItem(int section, int item, int position, boolean inSticky, Rect frame) {
+        this(section, item, position, inSticky, frame.left, frame.top, frame.right, frame.bottom);
+    }
+
     public int getSection() {
         return mSection;
     }
@@ -69,14 +78,6 @@ public class LayoutItem implements Comparable<LayoutItem> {
 
     public void setPosition(int position) {
         mPosition = position;
-    }
-
-    public void setOriginalPoint(int x, int y) {
-        if (mOroginalPoint == null) {
-            mOroginalPoint = new Point(x, y);
-        } else {
-            mOroginalPoint.set(x, y);
-        }
     }
 
     public void setInSticky() {
