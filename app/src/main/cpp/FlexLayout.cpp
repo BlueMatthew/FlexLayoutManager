@@ -59,7 +59,7 @@ void FlexLayout::updateItems(int action, int itemStart, int itemCount)
 
 }
 
-void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Size &contentSize, const Point &contentOffset) const
+void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Point &contentOffset) const
 {
     // bool vertical = m_layoutAdapter.isVertical();
 

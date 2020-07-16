@@ -453,8 +453,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         if (NATIVE) {
 
-            int[] data = filterItems(mNativeLayout, getOrientation(), getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom(),
-                    mContentSizeWidth, mContentSizeHeight, mContentOffset.x, mContentOffset.y);
+            int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(this, mLayoutCallback);
+            int[] data = filterItems(mNativeLayout, layoutInfo);
 
             List<LayoutItem> changingStickyItems = new ArrayList<>();
             visibleItems = FlexLayoutHelper.unserializeLayoutItemAndStickyItems(data, changingStickyItems);
@@ -860,7 +860,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     protected native void setStackedStickyItems(long layout, boolean stackedStickyItems);
     protected native boolean isStackedStickyItems(long layout);
     protected native void prepareLayout(long layout, LayoutCallback layoutCallback, int[] layoutInfo);
-    protected native int[] filterItems(long layout, int orientation, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
+    // protected native int[] filterItems(long layout, int orientation, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
+    protected native int[] filterItems(long layout, int[] layoutInfo);
     protected native void releaseLayout(long layout);
 
     static class SavedState implements Parcelable {

@@ -92,7 +92,7 @@ public:
     void updateItems(int action, int itemStart, int itemCount);
 
     // LayoutItem::data == 1, indicates that the item is sticky
-    void getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Size &contentSize, const Point &contentOffset) const;
+    void getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Point &contentOffset) const;
 
     jobject calcContentOffsetForScroll(int position, int itemOffsetX, int itemOffsetY) const;
 
