@@ -16,7 +16,7 @@ FlexLayout::~FlexLayout()
     clearStickyItems();
 }
 
-Size FlexLayout::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutInfo *layoutInfo)
+Size FlexLayout::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo *layoutInfo)
 {
     clearSections();
 

@@ -12,15 +12,9 @@ import java.util.List;
 
 public class FlexLayoutHelper {
 
-    public static int[] makeLayoutInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
-        int[] layoutInfo = null;
-
-        int numberOfSections = layoutCallback.getNumberOfSections();
-
-        int length = 1 + 9 + 14 * numberOfSections;
-        layoutInfo = new int[length];
-        int offset = 0;
-        layoutInfo[offset++] = length;
+    protected static int writeLayoutInfo(int[] layoutInfo, int offsetStart, FlexLayoutManager layoutManager, LayoutCallback layoutCallback)
+    {
+        int offset = offsetStart;
         layoutInfo[offset++] = layoutManager.getOrientation();
         layoutInfo[offset++] = layoutManager.getWidth();
         layoutInfo[offset++] = layoutManager.getHeight();
@@ -28,6 +22,40 @@ public class FlexLayoutHelper {
         layoutInfo[offset++] = layoutManager.getPaddingTop();
         layoutInfo[offset++] = layoutManager.getPaddingRight();
         layoutInfo[offset++] = layoutManager.getPaddingBottom();
+        layoutInfo[offset++] = layoutManager.computeHorizontalScrollOffset(null);   // Not good?
+        layoutInfo[offset++] = layoutManager.computeVerticalScrollOffset(null);     // Not good?
+
+        return offset - offsetStart;
+    }
+
+    public static int[] makeLayoutInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
+        int[] layoutInfo = null;
+
+        int numberOfSections = layoutCallback.getNumberOfSections();
+
+        int length = 1 + 9;
+        layoutInfo = new int[length];
+        int offset = 0;
+        layoutInfo[offset++] = length;
+
+        offset += writeLayoutInfo(layoutInfo, offset, layoutManager, layoutCallback);
+
+        return layoutInfo;
+    }
+
+
+    public static int[] makeLayoutAndSectionsInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
+        int[] layoutInfo = null;
+
+        int numberOfSections = layoutCallback.getNumberOfSections();
+
+        int length = 1 + 11 + 14 * numberOfSections;
+        layoutInfo = new int[length];
+        int offset = 0;
+        layoutInfo[offset++] = length;
+
+        offset += writeLayoutInfo(layoutInfo, offset, layoutManager, layoutCallback);
+
         layoutInfo[offset++] = numberOfSections;
         layoutInfo[offset++] = 0; // sectionStart
 

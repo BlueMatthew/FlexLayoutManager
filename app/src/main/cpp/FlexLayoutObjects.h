@@ -165,10 +165,24 @@ struct SectionInfo
     int hasFixedItemSize;
     Size fixedItemSize;
 
-    int readFromBuffer(int* buffer)
+    SectionInfo() : section(0), layoutMode(0), numberOfItems(0), numberOfColumns(0), lineSpacing(0), interitemSpacing(0), hasFixedItemSize(0)
     {
+    }
+
+    static int numberOfInts()
+    {
+        return 13;
+    }
+
+    inline int readFromBuffer(int* buffer, int bufferLength)
+    {
+        if (bufferLength < numberOfInts())
+        {
+            return 0;
+        }
+
         int offset = 0;
-         section = buffer[offset++];
+        section = buffer[offset++];
         layoutMode = buffer[offset++];
 
         padding.left = buffer[offset++];
@@ -186,20 +200,32 @@ struct SectionInfo
 
         return offset;
     }
+
 };
 
-struct LayoutInfo
-{
+
+struct LayoutInfo {
     int orientation;
     Size size;
     Insets padding;
-    int numberOfSections;
-    int sectionStart;
+    Point contentOffset;
 
-    std::vector<SectionInfo> sections;
-
-    int readFromBuffer(int* buffer)
+    LayoutInfo() : orientation(1)
     {
+    }
+
+    static int numberOfInts()
+    {
+        return 9; //1 + 2 + 4 + 2
+    }
+
+    inline int readFromBuffer(int* buffer, int bufferLength)
+    {
+        if (bufferLength < numberOfInts())
+        {
+            return 0;
+        }
+
         int offset = 0;
         orientation = buffer[offset++];
         size.width = buffer[offset++];
@@ -208,6 +234,46 @@ struct LayoutInfo
         padding.top = buffer[offset++];
         padding.right = buffer[offset++];
         padding.bottom = buffer[offset++];
+        contentOffset.x = buffer[offset++];
+        contentOffset.y = buffer[offset++];
+
+        return offset;
+    }
+};
+
+
+struct LayoutAndSectionsInfo : public LayoutInfo
+{
+    int numberOfSections;
+    int sectionStart;
+
+    std::vector<SectionInfo> sections;
+
+    LayoutAndSectionsInfo() : LayoutInfo(), numberOfSections(0), sectionStart(0)
+    {
+
+    }
+
+    static int numberOfInts()
+    {
+        return LayoutInfo::numberOfInts() + 2;
+    }
+
+    inline int readFromBuffer(int* buffer, int bufferLength)
+    {
+        int offset = 0;
+        if (bufferLength < numberOfInts())
+        {
+            return 0;
+        }
+
+        int intsRead = LayoutInfo::readFromBuffer(buffer, bufferLength);
+        if (intsRead == 0)
+        {
+            return 0;
+        }
+        offset += intsRead;
+
         numberOfSections = buffer[offset++];
         sectionStart = buffer[offset++];
         if (numberOfSections <= 0)
@@ -215,14 +281,22 @@ struct LayoutInfo
             sections.clear();
             return offset;
         }
+
         sections.resize(numberOfSections);
-        for (int sectionIndex = 0; sectionIndex < numberOfSections; sectionIndex++)
+        for (std::vector<SectionInfo>::iterator it = sections.begin(); it != sections.end(); ++it)
         {
-            offset += sections[sectionIndex].readFromBuffer(buffer + offset);
+            intsRead = (*it).readFromBuffer(buffer + offset, bufferLength - offset);
+            if (0 == intsRead)
+            {
+                break;
+            }
+            offset += intsRead;
         }
 
         return offset;
     }
+
 };
+
 
 #endif //FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H

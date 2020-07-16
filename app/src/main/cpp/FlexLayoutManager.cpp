@@ -104,22 +104,28 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
         jobject javaThis,
         jlong layout,
         jobject layoutCallback,
-        jintArray layoutInfo) {
+        jintArray layoutAndSectionsInfo) {
 
     FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    if (NULL == pLayout || NULL == layoutAndSectionsInfo)
     {
-        int arrayLength = env->GetArrayLength(layoutInfo);
-        std::vector<int> buffer;
-        buffer.resize(arrayLength);
-        env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
-        LayoutInfo localLayoutInfo;
-        localLayoutInfo.readFromBuffer(&(buffer[1]));
-
-        LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutInfo);
-
-        pLayout->prepareLayout(layoutCallbackAdapter, &localLayoutInfo);
+        return;
     }
+
+    jsize arrayLength = env->GetArrayLength(layoutAndSectionsInfo);
+    if (0 >= arrayLength)
+    {
+        return;
+    }
+    std::vector<int> buffer;
+    buffer.resize(arrayLength);
+    env->GetIntArrayRegion(layoutAndSectionsInfo, 0, arrayLength, &(buffer[0]));
+    LayoutAndSectionsInfo localLayoutAndSectionsInfo;
+    localLayoutAndSectionsInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+
+    LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutAndSectionsInfo);
+
+    pLayout->prepareLayout(layoutCallbackAdapter, &localLayoutAndSectionsInfo);
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
@@ -183,7 +189,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_calcContentOffsetForScroll(
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_calcVerticalContentOffsetForScroll(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,

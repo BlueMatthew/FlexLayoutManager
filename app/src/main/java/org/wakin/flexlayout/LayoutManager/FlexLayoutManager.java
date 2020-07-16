@@ -18,8 +18,6 @@ import org.wakin.flexlayout.LayoutManager.Elements.FlexFlowSection;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexSection;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexWaterfallSection;
-import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
-import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -690,7 +688,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         if (mLayoutInvalidated) {
 
             if (NATIVE) {
-                int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(this, mLayoutCallback);
+                int[] layoutInfo = FlexLayoutHelper.makeLayoutAndSectionsInfo(this, mLayoutCallback);
                 prepareLayout(mNativeLayout, mLayoutCallback, layoutInfo);
             }
             else {

@@ -16,7 +16,7 @@ private:
     jobject m_callback;
 
     // Cache
-    const LayoutInfo    *m_layoutInfo;
+    const LayoutAndSectionsInfo    *m_layoutAndSectionsInfo;
 
     // Cache
     mutable jobject             m_itemSize;
@@ -67,7 +67,7 @@ protected:
 public:
 
     LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback);
-    LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutInfo *layoutInfo);
+    LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutAndSectionsInfo *layoutInfo);
     ~LayoutCallbackAdapter();
 
 

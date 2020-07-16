@@ -55,15 +55,8 @@ void LayoutCallbackAdapter::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass
     env->DeleteLocalRef(sizeClass);
 }
 
-LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback) : LayoutCallbackAdapter(env, obj, callback, NULL)
+LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutAndSectionsInfo *layoutAndSectionsInfo) : m_env(env), m_layoutAndSectionsInfo(layoutAndSectionsInfo), m_cachedItemStart(0)
 {
-}
-
-LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutInfo *layoutInfo) : m_env(env), m_layoutInfo(layoutInfo), m_cachedItemStart(0)
-{
-    // m_layoutMnager = m_env->NewGlobalRef(obj);
-    // m_callback = m_env->NewGlobalRef(callback);
-
     m_layoutMnager = obj;
     m_callback = callback;
 
@@ -113,49 +106,49 @@ void LayoutCallbackAdapter::updateContentSize(int width, int height) const
 bool LayoutCallbackAdapter::isVertical() const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return 1 == m_layoutInfo->orientation;
+    return 1 == m_layoutAndSectionsInfo->orientation;
 }
 
 int LayoutCallbackAdapter::getNumberOfSections() const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->numberOfSections;
+    return m_layoutAndSectionsInfo->numberOfSections;
 }
 
 int LayoutCallbackAdapter::getLayoutModeForSection(int section) const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->sections[section].layoutMode;
+    return m_layoutAndSectionsInfo->sections[section].layoutMode;
 }
 
 int LayoutCallbackAdapter::getNumberOfItemsInSection(int section) const
 {
-    return m_layoutInfo->sections[section].numberOfItems;
+    return m_layoutAndSectionsInfo->sections[section].numberOfItems;
 }
 
 int LayoutCallbackAdapter::getNumberOfColumnsForSection(int section) const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->sections[section].numberOfColumns;
+    return m_layoutAndSectionsInfo->sections[section].numberOfColumns;
 }
 
 
 Insets LayoutCallbackAdapter::getInsetForSection(int section) const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->sections[section].padding;
+    return m_layoutAndSectionsInfo->sections[section].padding;
 }
 
 int LayoutCallbackAdapter::getMinimumLineSpacingForSection(int section) const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->sections[section].lineSpacing;
+    return m_layoutAndSectionsInfo->sections[section].lineSpacing;
 }
 
 int LayoutCallbackAdapter::getMinimumInteritemSpacingForSection(int section) const
 {
     // ASSERT(NULL != m_layoutInfo)
-    return m_layoutInfo->sections[section].interitemSpacing;
+    return m_layoutAndSectionsInfo->sections[section].interitemSpacing;
 }
 
 Size LayoutCallbackAdapter::getSizeForHeaderInSection(int section) const
@@ -241,11 +234,11 @@ Size LayoutCallbackAdapter::getSizeForItem(int section, int item, bool *isFullSp
 bool LayoutCallbackAdapter::hasFixedItemSize(int section, Size *fixedItemSize)
 {
     // ASSERT(NULL != m_layoutInfo)
-    if (m_layoutInfo->sections[section].hasFixedItemSize && NULL != fixedItemSize)
+    if (m_layoutAndSectionsInfo->sections[section].hasFixedItemSize && NULL != fixedItemSize)
     {
-        *fixedItemSize = m_layoutInfo->sections[section].fixedItemSize;
+        *fixedItemSize = m_layoutAndSectionsInfo->sections[section].fixedItemSize;
     }
-    return m_layoutInfo->sections[section].hasFixedItemSize;
+    return m_layoutAndSectionsInfo->sections[section].hasFixedItemSize;
 }
 
 // int getPageSize();

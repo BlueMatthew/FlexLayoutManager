@@ -88,7 +88,7 @@ public:
         return m_stackedStickyItems;
     }
 
-    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutInfo *layoutInfo);
+    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo *layoutInfo);
     void updateItems(int action, int itemStart, int itemCount);
 
     // LayoutItem::data == 1, indicates that the item is sticky
