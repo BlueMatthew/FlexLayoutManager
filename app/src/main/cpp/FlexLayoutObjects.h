@@ -298,5 +298,40 @@ struct LayoutAndSectionsInfo : public LayoutInfo
 
 };
 
+template<typename T>
+inline void writeToBuffer(std::vector<int> &buffer, const T &t)
+{
+}
+
+template<>
+inline void writeToBuffer(std::vector<int> &buffer, const Rect &rect)
+{
+    buffer.push_back(rect.left());
+    buffer.push_back(rect.top());
+    buffer.push_back(rect.width());
+    buffer.push_back(rect.height());
+}
+
+template<>
+inline void writeToBuffer(std::vector<int> &buffer, const LayoutItem &layoutItem)
+{
+    buffer.push_back(layoutItem.section);
+    buffer.push_back(layoutItem.item);
+    buffer.push_back(layoutItem.position);
+    writeToBuffer(buffer, layoutItem.frame);
+    buffer.push_back(layoutItem.data);
+}
+
+template<>
+inline void writeToBuffer(std::vector<int> &buffer, const std::pair<StickyItem, Point> &stickyItem)
+{
+    buffer.push_back(stickyItem.first.section);
+    buffer.push_back(stickyItem.first.item);
+    buffer.push_back(stickyItem.first.position);
+    buffer.push_back(stickyItem.first.inSticky ? 1 : 0);
+    buffer.push_back(stickyItem.second.x);
+    buffer.push_back(stickyItem.second.y);
+}
+
 
 #endif //FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H

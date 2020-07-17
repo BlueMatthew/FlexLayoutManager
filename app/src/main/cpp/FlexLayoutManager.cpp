@@ -125,7 +125,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
 
     LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutAndSectionsInfo);
 
-    pLayout->prepareLayout(layoutCallbackAdapter, &localLayoutAndSectionsInfo);
+    pLayout->prepareLayout(layoutCallbackAdapter, localLayoutAndSectionsInfo);
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
@@ -165,47 +165,73 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
     buffer.push_back(items.size());
     for (std::vector<LayoutItem>::const_iterator it = items.begin(); it != items.end(); ++it)
     {
-        buffer.push_back(it->section);
-        buffer.push_back(it->item);
-        buffer.push_back(it->position);
-        buffer.push_back(it->frame.origin.x);
-        buffer.push_back(it->frame.origin.y);
-        buffer.push_back(it->frame.size.width);
-        buffer.push_back(it->frame.size.height);
-        buffer.push_back(it->data);
+        writeToBuffer(buffer, *it);
     }
 
     buffer.push_back(changingStickyItems.size());
 
     for (std::vector<std::pair<StickyItem, Point>>::const_iterator it = changingStickyItems.begin(); it != changingStickyItems.end(); ++it)
     {
-        buffer.push_back(it->first.section);
-        buffer.push_back(it->first.item);
-        buffer.push_back(it->first.position);
-        buffer.push_back(it->first.inSticky ? 1 : 0);
-        buffer.push_back(it->second.x);
-        buffer.push_back(it->second.y);
+        writeToBuffer(buffer, *it);
     }
 
-    jintArray result = env->NewIntArray(buffer.size());
-    env->SetIntArrayRegion(result, 0, buffer.size(), &(buffer[0]));
-    return result;
-
+    return LayoutCallbackAdapter::makeIntArray(env, buffer);
 }
 
-extern "C" JNIEXPORT jobject JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_calcVerticalContentOffsetForScroll(
+// int array: left, top, right, bottom
+extern "C" JNIEXPORT jintArray JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_getItemRect(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
-        jint position, jint itemOffsetX, jint itemOffsetY) {
+        jint position) {
 
     FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-
-    if (NULL != pLayout)
+    if (NULL == pLayout)
     {
-        return pLayout->calcContentOffsetForScroll(position, itemOffsetX, itemOffsetY);
+        return NULL;
+    }
+
+    LayoutItem layoutItem;
+    bool found = pLayout->getItem(position, layoutItem);
+    if (found)
+    {
+        // return
+        std::vector<jint> buffer;
+        buffer.reserve(4);
+        writeToBuffer(buffer, layoutItem.frame);
+
+        return LayoutCallbackAdapter::makeIntArray(env, buffer);
     }
 
     return NULL;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_computerContentOffsetToMakePositionTopVisible(
+        JNIEnv* env,
+        jobject javaThis,
+        jlong layout,
+        jintArray layoutInfo,
+        jint position, int positionOffset) {
+
+    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
+    if (NULL == pLayout || NULL == layoutInfo)
+    {
+        return INVALID_OFFSET;
+    }
+
+    jsize arrayLength = env->GetArrayLength(layoutInfo);
+    if (0 >= arrayLength)
+    {
+        return INVALID_OFFSET;
+    }
+
+    std::vector<int> buffer;
+    buffer.resize(arrayLength);
+    env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
+    LayoutInfo localLayoutInfo;
+    localLayoutInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+
+    return pLayout->computerContentOffsetToMakePositionTopVisible(localLayoutInfo, position, positionOffset);
 }

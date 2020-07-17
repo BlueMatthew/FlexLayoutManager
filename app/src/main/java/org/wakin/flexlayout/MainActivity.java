@@ -3,6 +3,7 @@ package org.wakin.flexlayout;
 
 import android.graphics.Color;
 import android.graphics.Point;
+import android.os.Handler;
 import android.util.Log;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
@@ -87,6 +88,23 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
                         mAdapter.notifyDataSetChanged();
                         // mRecyclerView.swapAdapter(mAdapter, true);
+
+                        final Handler handler = new Handler();
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                mRecyclerView.smoothScrollToPosition(100);
+                                // mRecyclerView.scrollToPosition(100);
+
+                                // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();
+                                // layoutManager.scrollToPositionWithOffset(100, 60);
+                                // layoutManager.scrollToPositionWithOffset(100, -20);
+
+                                // layoutManager.smoothScrollToPosition(100, 60);
+
+                            }
+                        }, 3000);
+
                     }
                 }
             }
@@ -150,10 +168,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
                 }
             }
         });
-
-
-
-
 
     }
 

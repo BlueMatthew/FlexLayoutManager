@@ -55,6 +55,13 @@ void LayoutCallbackAdapter::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass
     env->DeleteLocalRef(sizeClass);
 }
 
+jintArray LayoutCallbackAdapter::makeIntArray(JNIEnv* env, const std::vector<jint> &buffer)
+{
+    jintArray result = env->NewIntArray(buffer.size());
+    env->SetIntArrayRegion(result, 0, buffer.size(), &(buffer[0]));
+    return result;
+}
+
 LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject callback, const LayoutAndSectionsInfo *layoutAndSectionsInfo) : m_env(env), m_layoutAndSectionsInfo(layoutAndSectionsInfo), m_cachedItemStart(0)
 {
     m_layoutMnager = obj;

@@ -157,4 +157,22 @@ public class FlexLayoutHelper {
         return visibleItems;
     }
 
+    public static Point longToPoint(long val) {
+        if (val == (~0)) {
+            return null;
+        }
+
+        Point pt = new Point(0, (int)val);
+        pt.x = (int)(val >> 32);
+        return pt;
+    }
+
+    public static Rect intArrayToRect(int[] intArray) {
+        if (intArray == null || intArray.length < 4) {
+            return null;
+        }
+
+        return new Rect(intArray[0], intArray[1], intArray[0] + intArray[2], intArray[1] + intArray[3]);
+    }
+
 }

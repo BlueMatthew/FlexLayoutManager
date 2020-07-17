@@ -16,21 +16,21 @@ FlexLayout::~FlexLayout()
     clearStickyItems();
 }
 
-Size FlexLayout::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo *layoutInfo)
+Size FlexLayout::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo)
 {
     clearSections();
 
     int sectionCount = layoutCallbackAdapter.getNumberOfSections();
     if (sectionCount <= 0)
     {
-        layoutCallbackAdapter.updateContentSize(layoutInfo->size.width, layoutInfo->padding.top + layoutInfo->padding.bottom);
-        return Size(layoutInfo->size.width, layoutInfo->padding.top + layoutInfo->padding.bottom);
+        layoutCallbackAdapter.updateContentSize(layoutAndSectionsInfo.size.width, layoutAndSectionsInfo.padding.top + layoutAndSectionsInfo.padding.bottom);
+        return Size(layoutAndSectionsInfo.size.width, layoutAndSectionsInfo.padding.top + layoutAndSectionsInfo.padding.bottom);
     }
 
-    Rect bounds(layoutInfo->padding.left, layoutInfo->padding.top, layoutInfo->size.width - layoutInfo->padding.right - layoutInfo->padding.right, layoutInfo->size.height - layoutInfo->padding.top - layoutInfo->padding.bottom);
+    Rect bounds(layoutAndSectionsInfo.padding.left, layoutAndSectionsInfo.padding.top, layoutAndSectionsInfo.size.width - layoutAndSectionsInfo.padding.right - layoutAndSectionsInfo.padding.right, layoutAndSectionsInfo.size.height - layoutAndSectionsInfo.padding.top - layoutAndSectionsInfo.padding.bottom);
     int positionBase = 0;
 
-    Rect rectOfSection(layoutInfo->padding.left, layoutInfo->padding.top, bounds.width(), 0);
+    Rect rectOfSection(layoutAndSectionsInfo.padding.left, layoutAndSectionsInfo.padding.top, bounds.width(), 0);
     for (int sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++) {
         int layoutMode = layoutCallbackAdapter.getLayoutModeForSection(sectionIndex);
         FlexSection *section = layoutMode == 1 ?
@@ -48,10 +48,10 @@ Size FlexLayout::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapte
         // rectOfSection.size.height = 0;
     }
 
-    int contentHeight = (int)rectOfSection.bottom() + layoutInfo->padding.bottom;
-    layoutCallbackAdapter.updateContentSize(layoutInfo->size.width, contentHeight);
+    int contentHeight = (int)rectOfSection.bottom() + layoutAndSectionsInfo.padding.bottom;
+    layoutCallbackAdapter.updateContentSize(layoutAndSectionsInfo.size.width, contentHeight);
 
-    return Size(layoutInfo->size.width, contentHeight);
+    return Size(layoutAndSectionsInfo.size.width, contentHeight);
 }
 
 void FlexLayout::updateItems(int action, int itemStart, int itemCount)
@@ -61,20 +61,16 @@ void FlexLayout::updateItems(int action, int itemStart, int itemCount)
 
 void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Point &contentOffset) const
 {
-    // bool vertical = m_layoutAdapter.isVertical();
-
     Rect rect(contentOffset.x, contentOffset.y, size.width, size.height);   // visibleRect
 
-    std::pair<std::vector<FlexSection *>::const_iterator, std::vector<FlexSection *>::const_iterator> range = vertical ?
-            std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.top(), rect.bottom()), FlexSectionVerticalCompare()) :
-            std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.left(), rect.width()), FlexSectionHorizontalCompare());
+    FlexSectionConstIteratorPair range = vertical ?
+                                         std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.top(), rect.bottom()), FlexSectionVerticalCompare()) :
+                                         std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.left(), rect.right()), FlexSectionHorizontalCompare());
     if (range.first == range.second)
     {
         // No Sections
         return;
     }
-
-    // std::vector<LayoutItem *> visibleItems;
 
     std::vector<const FlexItem *> flexItems;
     for (std::vector<FlexSection *>::const_iterator it = range.first; it != range.second; ++it)
@@ -97,7 +93,6 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
 
             LayoutItem item((*it)->getSection(), (*itItem)->getItem(), (*it)->getPositionBase() + (*itItem)->getItem(), frame);
 
-            // m_layoutAdapter.addLayoutItem(javaList, item);
             items.push_back(item);
         }
         flexItems.clear();
@@ -150,9 +145,11 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
             }
             else
             {
-                Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
-                Rect frameItems(origin.x, origin.y, lastItemInSection.right(), lastItemInSection.bottom());
-                frameItems.offset(section->getFrame().left(), section->getFrame().top());
+                // Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
+                // Rect frameItems(origin.x, origin.y, lastItemInSection.right(), lastItemInSection.bottom());
+                // frameItems.offset(section->getFrame().left(), section->getFrame().top());
+
+                Rect frameItems = section->getItemsFrame();
 
                 rect.origin.y = std::min(
                         std::max(insets.top, (frameItems.origin.y - stickyItemSize)),
@@ -194,7 +191,99 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
     }
 }
 
-jobject FlexLayout::calcContentOffsetForScroll(int position, int itemOffsetX, int itemOffsetY) const
+bool FlexLayout::getItem(int position, LayoutItem &layoutItem) const
 {
-    return NULL;
+    std::vector<FlexSection *>::const_iterator it = std::upper_bound(m_sections.begin(), m_sections.end(), position, FlexSectionPositionCompare());
+    if (it == m_sections.end())
+    {
+        return false;
+    }
+
+    // layoutItem = *it;
+    Rect rect = (*it)->getItemFrameInView(position - (*it)->getPositionBase());
+    layoutItem.reset((*it)->getSection(), position - (*it)->getPositionBase(), position, rect, 0);
+
+    return true;
+}
+
+int FlexLayout::computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const
+{
+    std::vector<FlexSection *>::const_iterator itTargetSection = std::lower_bound(m_sections.begin(), m_sections.end(), position, FlexSectionPositionCompare());
+    if (itTargetSection == m_sections.end())
+    {
+        return INVALID_OFFSET;
+    }
+
+    FlexItem *targetItem = (*itTargetSection)->getItem(position - (*itTargetSection)->getPositionBase());
+    if (NULL == targetItem)
+    {
+        return INVALID_OFFSET;
+    }
+
+    int newContentOffsetY = targetItem->getFrame().top() + positionOffset;
+
+    int totalStickyItemSize = 0; // When m_stackedStickyItems == true
+    Rect rect;
+    Point origin;   // old origin
+
+    for (std::vector<StickyItem>::const_iterator it = m_stickyItems.begin(); it != m_stickyItems.end(); ++it)
+    {
+        if ((!m_stackedStickyItems) && (it->section < (*itTargetSection)->getSection()))
+        {
+            continue;
+        }
+        if (it->section > (*itTargetSection)->getSection() || (it->section == (*itTargetSection)->getSection() && it->item > targetItem->getItem()))
+        {
+            // If the sticky item is greater than target item
+            break;
+        }
+
+        // int sectionIndex = it->section;
+        const FlexSection *section = m_sections[it->section];
+
+        rect = section->getItemFrameInView(it->item);
+        // TODO:There should be bug
+        rect.offset(-layoutInfo.contentOffset.x, -layoutInfo.contentOffset.y);
+        origin = rect.origin;
+
+        int stickyItemSize = rect.height();
+
+        if (m_stackedStickyItems)
+        {
+            rect.origin.y = std::max(totalStickyItemSize + layoutInfo.padding.top, rect.origin.y);
+        }
+        else
+        {
+            Rect frameItems = section->getItemsFrame();
+            rect.origin.y = std::min(
+                    std::max(layoutInfo.padding.top, (frameItems.origin.y - stickyItemSize)),
+                    (frameItems.bottom() - stickyItemSize)
+            );
+        }
+        // rect.offsetTo(origin.x, origin.y);
+
+        // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
+        // Otherwise, we check the top of sticky header
+        bool stickyMode = it->inSticky ? ((layoutInfo.contentOffset.y + layoutInfo.padding.top < rect.origin.y) ? false : true) : ((rect.origin.y >= origin.y) ? true : false);
+        if (stickyMode)
+        {
+            totalStickyItemSize = m_stackedStickyItems ? (totalStickyItemSize + stickyItemSize) : stickyItemSize;
+        }
+
+    }
+
+    int contentOffset = 0;
+    rect = targetItem->getFrame();
+    rect.offset((*itTargetSection)->getFrame().origin.x, (*itTargetSection)->getFrame().origin.y);
+    if (1 == layoutInfo.orientation)
+    {
+        contentOffset = rect.top() - layoutInfo.padding.top - totalStickyItemSize + positionOffset;
+    }
+    else
+    {
+        contentOffset = rect.left() - layoutInfo.padding.left - totalStickyItemSize + positionOffset;
+    }
+
+
+    return contentOffset;
 }

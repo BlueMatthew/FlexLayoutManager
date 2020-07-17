@@ -18,6 +18,7 @@ import org.wakin.flexlayout.LayoutManager.Elements.FlexFlowSection;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexSection;
 import org.wakin.flexlayout.LayoutManager.Elements.FlexWaterfallSection;
+import org.wakin.flexlayout.MainActivityHelper;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -386,35 +387,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingSavedState = null;
         }
 
-        if (mPendingScrollPosition != NO_POSITION) {
-            /*
-            FlexItem item = findItem(mPendingScrollPosition);
-            if (item != null) {
-                Point contentOffset = mContentOffset;
-                PointF distance = computeScrollDistanceForPosition(mPendingScrollPosition);
-
-                if (mPendingScrollPositionOffset == INVALID_OFFSET) {
-                    mPendingScrollPositionOffset = 0;
-                }
-
-                if (mOrientation == VERTICAL) {
-                    contentOffset.y = (int)(distance.y + 0.5) + mPendingScrollPositionOffset;
-                    if (contentOffset.y > mContentSizeHeight - getHeight()) {
-                        contentOffset.y = mContentSizeHeight - getHeight();
-                    }
-                } else {
-                    contentOffset.x = (int)(distance.x + 0.5) + mPendingScrollPositionOffset;
-                    if (contentOffset.x > mContentSizeWidth - getWidth()) {
-                        contentOffset.y = mContentSizeWidth - getWidth();
-                    }
-                }
-                mContentOffset = contentOffset;
-            }
-*/
-
-            mPendingScrollPosition = NO_POSITION;
-            mPendingScrollPositionOffset = INVALID_OFFSET;
-        }
+        applyPandingScrollPositionWithOffset();
 
         // Log.d("Flex", "onLayoutChildren: State=" + state.toString());
 
@@ -765,22 +738,41 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     @Override
     public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state, int position) {
+        final PointF vector = computeScrollVectorForPosition(position);
+        if (vector == null) {
+            return;
+        }
         LinearSmoothScroller linearSmoothScroller =
                 new LinearSmoothScroller(recyclerView.getContext()) {
                     @Override
                     public PointF computeScrollVectorForPosition(int targetPosition) {
-                        return FlexLayoutManager.this.mLayout.computeScrollVectorForPosition(targetPosition);
+                        return vector;
                     }
 
                     @Override
                     protected void onTargetFound(View targetView, RecyclerView.State state, Action action) {
                         // final int dx = calculateDxToMakeVisible(targetView, getHorizontalSnapPreference());
                         // final int dy = calculateDyToMakeVisible(targetView, getVerticalSnapPreference());
-                        // this.getTargetPosition()
-                        final PointF d = FlexLayoutManager.this.mLayout.computeScrollDistanceForPosition(this.getTargetPosition());
-                        final int distance = (int) Math.sqrt(d.x * d.x + d.y * d.y);
-                        int dx = (int)d.x;
-                        int dy = (int)d.y;
+                        int distance = 0;
+                        if (NATIVE) {
+                            int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(FlexLayoutManager.this, mLayoutCallback);
+                            int contentOffset = computerContentOffsetToMakePositionTopVisible(mNativeLayout, layoutInfo, this.getTargetPosition(), 0);
+                            if (getOrientation() == VERTICAL) {
+                                distance = Math.abs(mContentOffset.y - contentOffset);
+                            } else {
+                                distance = Math.abs(mContentOffset.y - contentOffset);
+                            }
+                        } else {
+                            distance = Math.abs(FlexLayoutManager.this.mLayout.computeScrollDistanceForPosition(this.getTargetPosition()));
+                        }
+
+                        int dx = 0;
+                        int dy = 0;
+                        if (getOrientation() == VERTICAL) {
+                            dy = distance;
+                        } else {
+                            dx = distance;
+                        }
                         final int time = calculateTimeForDeceleration(distance);
                         if (time > 0) {
                             action.update(dx, dy, time, mDecelerateInterpolator);
@@ -852,6 +844,75 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         mContentSizeHeight = height;
     }
 
+    protected PointF computeScrollVectorForPosition(int position) {
+        PointF pt = null;
+        if (NATIVE) {
+            int[] data = getItemRect(mNativeLayout, position);
+            Rect rect = FlexLayoutHelper.intArrayToRect(data);
+            if (rect != null) {
+                if (getOrientation() == HORIZONTAL) {
+                    int targetContentOffset = rect.left;
+                    pt = new PointF(mContentOffset.x < targetContentOffset ? 1 : -1, 0);
+                } else {
+                    int targetContentOffset = rect.top;
+                    pt = new PointF(0, mContentOffset.y < targetContentOffset ? 1 : -1);
+                }
+            }
+        } else {
+            pt = mLayout.computeScrollVectorForPosition(position);
+        }
+        return pt;
+    }
+
+    protected void applyPandingScrollPositionWithOffset() {
+
+        if (mPendingScrollPosition != NO_POSITION) {
+
+
+
+            if (NATIVE) {
+                if (mPendingScrollPositionOffset == INVALID_OFFSET) {
+                    mPendingScrollPositionOffset = 0;
+                }
+                int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(this, mLayoutCallback);
+                int contentOffset = computerContentOffsetToMakePositionTopVisible(mNativeLayout, layoutInfo, mPendingScrollPosition, mPendingScrollPositionOffset);
+                if (contentOffset != INVALID_OFFSET) {
+                    if (mOrientation == VERTICAL) {
+                        if (contentOffset > mContentSizeHeight - getHeight()) {
+                            mContentOffset.y = mContentSizeHeight - getHeight();
+                        }
+                        mContentOffset.y = contentOffset;
+                    } else {
+                        if (contentOffset > mContentSizeWidth - getWidth()) {
+                            contentOffset = mContentSizeWidth - getWidth();
+                        }
+                        mContentOffset.x = contentOffset;
+                    }
+                }
+
+            } else {
+
+                int distance = mLayout.computeScrollDistanceForPosition(mPendingScrollPosition, mPendingScrollPositionOffset);
+
+                if (mOrientation == VERTICAL) {
+                    mContentOffset.y = distance;
+                    if (mContentOffset.y > mContentSizeHeight - getHeight()) {
+                        mContentOffset.y = mContentSizeHeight - getHeight();
+                    }
+                } else {
+                    mContentOffset.x = distance;
+                    if (mContentOffset.x > mContentSizeWidth - getWidth()) {
+                        mContentOffset.y = mContentSizeWidth - getWidth();
+                    }
+                }
+            }
+
+            mPendingScrollPosition = NO_POSITION;
+            mPendingScrollPositionOffset = INVALID_OFFSET;
+
+        }
+    }
+
 
     protected static native void initLayoutEnv(Class callbackClass);
     protected native long createLayout(LayoutCallback layoutCallback);
@@ -862,6 +923,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     protected native void prepareLayout(long layout, LayoutCallback layoutCallback, int[] layoutInfo);
     // protected native int[] filterItems(long layout, int orientation, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
     protected native int[] filterItems(long layout, int[] layoutInfo);
+    protected native int[] getItemRect(long layout, int position);
+    protected native int computerContentOffsetToMakePositionTopVisible(long layout, int[] layoutInfo, int position, int positionOffset);
     protected native void releaseLayout(long layout);
 
     static class SavedState implements Parcelable {
@@ -1007,19 +1070,24 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             }
         }
 
-        public PointF computeScrollDistanceForPosition(int targetPosition) {
-            return computeScrollDistanceForPosition(targetPosition, null);
+        public int computeScrollDistanceForPosition(int targetPosition) {
+            return computeScrollDistanceForPosition(targetPosition, 0);
         }
 
-        public PointF computeScrollDistanceForPosition(int targetPosition, Point offset) {
+        public int computeScrollDistanceForPosition(int targetPosition, int offset) {
+            return (getOrientation() == VERTICAL) ?
+                    computeScrollDistanceForPositionVertically(targetPosition, offset) :
+                    computeScrollDistanceForPositionHorizontally(targetPosition, offset);
+        }
 
-            PointF distance = new PointF();
+        public int computeScrollDistanceForPositionVertically(int targetPosition, int offset) {
+
             FlexItem targetItem = findItem(targetPosition);
-
             if (targetItem == null) {
-                return distance;
+                return 0;
             }
 
+            int distance = 0;
             Point stickyItemPoint = new Point(getPaddingLeft(), getPaddingTop());
             Rect rect = new Rect();
             Point origin = new Point();
@@ -1069,18 +1137,14 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             }
 
             targetItem.getFrameOnView(rect);
-            if (mOrientation == HORIZONTAL) {
-                distance.x = rect.left - mContentOffset.x - stickyItemPoint.x;
-            } else {
-                distance.y = rect.top - mContentOffset.y - stickyItemPoint.y;
-            }
+            distance = rect.top - mContentOffset.y - stickyItemPoint.y;
 
-            if (offset != null) {
-                distance.x += offset.x;
-                distance.y += offset.y;
-            }
+            return distance + offset;
+        }
 
-            return distance;
+        public int computeScrollDistanceForPositionHorizontally(int targetPosition, int offset) {
+
+            return 0;
         }
 
         public void prepareLayout(int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom) {

@@ -74,6 +74,8 @@ public:
     static void initLayoutEnv(JNIEnv* env, jclass layoutManagerClass, jclass callbackClass);
     // static void addLayoutItem(jobject javaList, const LayoutItem &item);
 
+    static jintArray makeIntArray(JNIEnv* env, const std::vector<jint> &buffer);
+
 public:
     void updateContentSize(int width, int height) const;
 

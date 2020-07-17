@@ -25,6 +25,8 @@
 #endif // NDK_DEBUG
 
 
+#define INVALID_OFFSET INT_MIN
+
 class FlexSection : public nsflex::FlexSectionT<LayoutCallbackAdapter, int, int>
 {
 protected:
@@ -50,6 +52,21 @@ typedef nsflex::FlexFlowSectionT<FlexSection> FlexFlowSection;
 typedef nsflex::FlexWaterfallSectionT<FlexSection> FlexWaterfallSection;
 typedef nsflex::FlexVerticalCompareT<FlexSection> FlexSectionVerticalCompare;
 typedef nsflex::FlexHorizontalCompareT<FlexSection> FlexSectionHorizontalCompare;
+typedef std::vector<FlexSection *>::const_iterator FlexSectionConstIterator;
+typedef std::pair<FlexSectionConstIterator, FlexSectionConstIterator> FlexSectionConstIteratorPair;
+
+
+struct FlexSectionPositionCompare
+{
+    bool operator() ( const FlexSection* section, int position) const
+    {
+        return section->getPositionBase() + section->getItemCount() <= position;
+    }
+    bool operator() ( int position, const FlexSection* item ) const
+    {
+        return position < item->getPositionBase();
+    }
+};
 
 
 class FlexLayout
@@ -73,6 +90,7 @@ public:
             std::sort(m_stickyItems.begin(), m_stickyItems.end());
         }
     }
+
     void clearStickyItems()
     {
         m_stickyItems.clear();
@@ -88,13 +106,15 @@ public:
         return m_stackedStickyItems;
     }
 
-    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo *layoutInfo);
+    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo);
     void updateItems(int action, int itemStart, int itemCount);
 
     // LayoutItem::data == 1, indicates that the item is sticky
     void getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Point &contentOffset) const;
 
-    jobject calcContentOffsetForScroll(int position, int itemOffsetX, int itemOffsetY) const;
+    int computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const;
+
+    bool getItem(int position, LayoutItem &layoutItem) const;
 
 
 protected:
