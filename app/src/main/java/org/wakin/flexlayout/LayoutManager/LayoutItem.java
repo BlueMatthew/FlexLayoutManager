@@ -36,19 +36,16 @@ public class LayoutItem implements Comparable<LayoutItem> {
         item.getFrameOnView(mFrame);
     }
 
-    public LayoutItem(int section, int item, int position, boolean inSticky, int left, int top, int right, int bottom) {
+    public LayoutItem(int section, int item, int position, int data, int left, int top, int right, int bottom) {
         mSection = section;
         mItem = item;
         mPosition = position;
-        mData = 0;
-        if (inSticky) {
-            mData |= 1;
-        }
+        mData = data;
         mFrame = new Rect(left, top, right, bottom);
     }
 
-    public LayoutItem(int section, int item, int position, boolean inSticky, Rect frame) {
-        this(section, item, position, inSticky, frame.left, frame.top, frame.right, frame.bottom);
+    public LayoutItem(int section, int item, int position, int data, Rect frame) {
+        this(section, item, position, data, frame.left, frame.top, frame.right, frame.bottom);
     }
 
     public int getSection() {
@@ -62,6 +59,9 @@ public class LayoutItem implements Comparable<LayoutItem> {
 
     public boolean isInSticky() {
         return (mData & 1) == 1;
+    }
+    public boolean isOriginChanged() {
+        return (mData & 2) == 2;
     }
 
     public Rect getFrame() {
@@ -80,6 +80,9 @@ public class LayoutItem implements Comparable<LayoutItem> {
         mPosition = position;
     }
 
+    public void setOriginChanged() {
+        mData |= 2;
+    }
     public void setInSticky() {
         mData |= 1;
     }

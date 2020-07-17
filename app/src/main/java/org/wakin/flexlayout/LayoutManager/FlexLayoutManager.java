@@ -497,7 +497,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 // Currently visible
                 layoutItem = visibleItems.get(itemIndex);
 
-                if (layoutItem.isInSticky()) {
+                if (layoutItem.isInSticky() && layoutItem.isOriginChanged()) {
                     // Sticky
                     visibleStickyItems.put(layoutItem, childView);
 
@@ -558,8 +558,13 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
 
         for (LayoutItem item : visibleItems) {
-
-            if (!item.isInSticky()) {
+            if (item.isInSticky() && item.isOriginChanged()) {
+                // If the origin is changing, we will layout the view later to put it higher in z-order
+                // visibleStickyItems.put()
+                if (!visibleStickyItems.containsKey(item)) {
+                    visibleStickyItems.put(item, null);
+                }
+            } else {
 
                 childView = recycler.getViewForPosition(item.getPosition());
 

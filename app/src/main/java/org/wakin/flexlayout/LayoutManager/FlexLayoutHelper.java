@@ -121,7 +121,7 @@ public class FlexLayoutHelper {
             rect.bottom = rect.top + data[offset++];
             stickyData = data[offset++];
 
-            layoutItem = new LayoutItem(section, item, position, (stickyData == 1), rect);
+            layoutItem = new LayoutItem(section, item, position, stickyData, rect);
 
             visibleItems.add(layoutItem);
         }
@@ -150,7 +150,7 @@ public class FlexLayoutHelper {
             rect.right = rect.left;
             rect.bottom = rect.top;
 
-            layoutItem = new LayoutItem(section, item, position, (stickyData == 1), rect);
+            layoutItem = new LayoutItem(section, item, position, stickyData, rect);
             changingStickyItems.add(layoutItem);
         }
 

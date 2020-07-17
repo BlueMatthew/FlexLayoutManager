@@ -96,9 +96,19 @@ struct LayoutItem
         inSticky ? (data |= 1) : (data &= (~1));
     }
 
+    void setOriginChanged(bool changed)
+    {
+        changed ? (data |= 2) : (data &= (~2));
+    }
+
     bool isInSticky() const
     {
         return (data & 1) == 1;
+    }
+
+    bool isOriginChanged() const
+    {
+        return (data & 2) == 2;
     }
 };
 

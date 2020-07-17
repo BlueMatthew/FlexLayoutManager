@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
                         handler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                mRecyclerView.smoothScrollToPosition(100);
+                                // mRecyclerView.smoothScrollToPosition(100);
                                 // mRecyclerView.scrollToPosition(100);
 
                                 // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();

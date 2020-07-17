@@ -126,6 +126,26 @@ public:
         return m_itemsFrame;
     }
 
+    inline const Rect getItemsFrameInViewAfterItemVertically(int itemIndex) const
+    {
+        FlexItem *item = m_items[itemIndex];
+        FlexItem *itemLast = m_items.back();
+
+        Rect rect(item->getFrame().left(), item->getFrame().bottom(), (*itemLast).getFrame().width(), (*itemLast).getFrame().bottom() - item->getFrame().bottom());
+        rect.offset(m_frame.left(), m_frame.top());
+        return rect;
+    }
+
+    inline const Rect getItemsFrameInViewAfterItemHorizontally(int itemIndex) const
+    {
+        FlexItem *item = m_items[itemIndex];
+        FlexItem *itemLast = m_items.back();
+
+        Rect rect(item->getFrame().right(), item->getFrame().top(), (*itemLast).getFrame().right() - item->getFrame().right(), (*itemLast).getFrame().height());
+        rect.offset(m_frame.left(), m_frame.top());
+        return rect;
+    }
+
     void prepareLayout(const TLayout *layout, const Rect &bounds)
     {
         isVertical(layout) ? prepareLayoutVertically(layout, bounds) : prepareLayoutHorizontally(layout, bounds);

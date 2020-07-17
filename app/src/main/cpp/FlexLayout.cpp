@@ -61,11 +61,16 @@ void FlexLayout::updateItems(int action, int itemStart, int itemCount)
 
 void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, bool vertical, const Size &size, const Insets &insets, const Point &contentOffset) const
 {
+#define INTERNAL_VERTICAL_LAYOUT
+
     Rect rect(contentOffset.x, contentOffset.y, size.width, size.height);   // visibleRect
 
-    FlexSectionConstIteratorPair range = vertical ?
-                                         std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.top(), rect.bottom()), FlexSectionVerticalCompare()) :
-                                         std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.left(), rect.right()), FlexSectionHorizontalCompare());
+#ifdef INTERNAL_VERTICAL_LAYOUT
+    FlexSectionConstIteratorPair range = std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.top(), rect.bottom()), FlexSectionVerticalCompare());
+#else
+    FlexSectionConstIteratorPair range = std::equal_range(m_sections.begin(), m_sections.end(), std::pair<int, int>(rect.left(), rect.right()), FlexSectionHorizontalCompare());
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
+
     if (range.first == range.second)
     {
         // No Sections
@@ -103,7 +108,6 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
         int maxSection = range.second - 1 - m_sections.begin();
         int minSection = range.first - m_sections.begin();
 
-        // UIEdgeInsets contentInset = self.collectionView.contentInset;
         int totalStickyItemSize = 0; // When m_stackedStickyItems == YES
 
         LayoutStickyItemCompare comp;
@@ -137,29 +141,43 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
             rect.offset(section->getFrame().origin.x - contentOffset.x, section->getFrame().origin.y - contentOffset.y);
             origin = rect.origin;
 
+#ifdef INTERNAL_VERTICAL_LAYOUT
             int stickyItemSize = rect.height();
+#else
+            int stickyItemSize = rect.width();
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
 
             if (m_stackedStickyItems)
             {
+#ifdef INTERNAL_VERTICAL_LAYOUT
                 rect.origin.y = std::max(totalStickyItemSize + insets.top, origin.y);
+#else
+                rect.origin.x = std::max(totalStickyItemSize + insets.left, origin.x);
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
             }
             else
             {
-                // Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
-                // Rect frameItems(origin.x, origin.y, lastItemInSection.right(), lastItemInSection.bottom());
-                // frameItems.offset(section->getFrame().left(), section->getFrame().top());
-
-                Rect frameItems = section->getItemsFrame();
-
-                rect.origin.y = std::min(
-                        std::max(insets.top, (frameItems.origin.y - stickyItemSize)),
-                        (frameItems.bottom() - stickyItemSize)
-                );
+                Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
+                Rect frameItems(origin.x, origin.y, lastItemInSection.right(), lastItemInSection.bottom());
+                frameItems.offset(section->getFrame().left(), section->getFrame().top());
+#ifdef INTERNAL_VERTICAL_LAYOUT
+                rect.origin.y = std::min(std::max(insets.top, (frameItems.origin.y - stickyItemSize)),
+                        (frameItems.bottom() - stickyItemSize));
+#else
+                rect.origin.x = std::min(std::max(insets.left, (frameItems.origin.x - stickyItemSize)),
+                        (frameItems.right() - stickyItemSize));
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
             }
 
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
-            bool stickyMode = it->inSticky ? ((contentOffset.y + insets.top < rect.origin.y) ? false : true) : ((rect.origin.y > origin.y) ? true : false);
+#ifdef INTERNAL_VERTICAL_LAYOUT
+            bool stickyMode = it->inSticky ? ((contentOffset.y + insets.top < rect.origin.y) ? false : true) : ((rect.origin.y >= origin.y) ? true : false);
+            bool originChanged = it->inSticky ? ((rect.origin.y >= contentOffset.x + insets.top) ? false : true) : ((rect.origin.y > origin.y) ? true : false);
+            // bool stickyMode = (rect.origin.y >= origin.y);
+#else
+            bool stickyMode = it->inSticky ? ((contentOffset.x + insets.left < rect.origin.x) ? false : true) : ((rect.origin.x >= origin.x) ? true : false);
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
             if (stickyMode != it->inSticky)
             {
                 // Pass the change info to caller
@@ -175,6 +193,7 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
                     // Create new LayoutItem and put it into visibleItems
                     LayoutItem *layoutItem = new LayoutItem(it->section, it->item, it->position, rect);
                     layoutItem->setInSticky(true);
+                    layoutItem->setOriginChanged(true);
                     items.insert(itVisibleItem, layoutItem);
                 }
                 else
@@ -182,13 +201,15 @@ void FlexLayout::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std:
                     // Update in place
                     itVisibleItem->frame = rect;
                     itVisibleItem->setInSticky(true);
+                    itVisibleItem->setOriginChanged(true);
                 }
 
-                // layoutAttributes.zIndex = 1024 + it->first;  //
                 totalStickyItemSize += stickyItemSize;
             }
         }
     }
+
+#undef INTERNAL_VERTICAL_LAYOUT
 }
 
 bool FlexLayout::getItem(int position, LayoutItem &layoutItem) const
@@ -199,9 +220,15 @@ bool FlexLayout::getItem(int position, LayoutItem &layoutItem) const
         return false;
     }
 
+    int itemIndex = position - (*it)->getPositionBase();
+    if (itemIndex >= (*it)->getItemCount())
+    {
+        return false;
+    }
+
     // layoutItem = *it;
-    Rect rect = (*it)->getItemFrameInView(position - (*it)->getPositionBase());
-    layoutItem.reset((*it)->getSection(), position - (*it)->getPositionBase(), position, rect, 0);
+    Rect rect = (*it)->getItemFrameInView(itemIndex);
+    layoutItem.reset((*it)->getSection(), itemIndex, position, rect, 0);
 
     return true;
 }
@@ -220,7 +247,11 @@ int FlexLayout::computerContentOffsetToMakePositionTopVisible(const LayoutInfo &
         return INVALID_OFFSET;
     }
 
-    int newContentOffsetY = targetItem->getFrame().top() + positionOffset;
+#ifdef INTERNAL_VERTICAL_LAYOUT
+    int newContentOffset = targetItem->getFrame().top() + positionOffset;
+#else
+    int newContentOffset = targetItem->getFrame().left() + positionOffset;
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
 
     int totalStickyItemSize = 0; // When m_stackedStickyItems == true
     Rect rect;
@@ -246,25 +277,44 @@ int FlexLayout::computerContentOffsetToMakePositionTopVisible(const LayoutInfo &
         rect.offset(-layoutInfo.contentOffset.x, -layoutInfo.contentOffset.y);
         origin = rect.origin;
 
+#ifdef INTERNAL_VERTICAL_LAYOUT
         int stickyItemSize = rect.height();
+#else
+        int stickyItemSize = rect.width();
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
 
         if (m_stackedStickyItems)
         {
+#ifdef INTERNAL_VERTICAL_LAYOUT
             rect.origin.y = std::max(totalStickyItemSize + layoutInfo.padding.top, rect.origin.y);
+#else
+            rect.origin.x = std::max(totalStickyItemSize + layoutInfo.padding.left, rect.origin.x);
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
         }
         else
         {
-            Rect frameItems = section->getItemsFrame();
+#ifdef INTERNAL_VERTICAL_LAYOUT
+            Rect frameItems = section->getItemsFrameInViewAfterItemVertically(it->item);
             rect.origin.y = std::min(
                     std::max(layoutInfo.padding.top, (frameItems.origin.y - stickyItemSize)),
                     (frameItems.bottom() - stickyItemSize)
             );
+#else
+            Rect frameItems = section->getItemsFrameInViewAfterItemHorizontally(it->item);
+            rect.origin.x = std::min(
+                    std::max(layoutInfo.padding.left, (frameItems.origin.x - stickyItemSize)),
+                    (frameItems.right() - stickyItemSize)
+            );
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
         }
-        // rect.offsetTo(origin.x, origin.y);
 
         // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
         // Otherwise, we check the top of sticky header
+#ifdef INTERNAL_VERTICAL_LAYOUT
         bool stickyMode = it->inSticky ? ((layoutInfo.contentOffset.y + layoutInfo.padding.top < rect.origin.y) ? false : true) : ((rect.origin.y >= origin.y) ? true : false);
+#else
+        bool stickyMode = it->inSticky ? ((layoutInfo.contentOffset.x + layoutInfo.padding.left < rect.origin.x) ? false : true) : ((rect.origin.x >= origin.x) ? true : false);
+#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
         if (stickyMode)
         {
             totalStickyItemSize = m_stackedStickyItems ? (totalStickyItemSize + stickyItemSize) : stickyItemSize;
