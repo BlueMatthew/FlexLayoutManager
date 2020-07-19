@@ -1,14 +1,119 @@
+//
+// Created by Matthew Shi on 2020-07-19.
+//
 #include <jni.h>
-#include <string>
 #include <vector>
 #include "FlexLayout.h"
 #include "LayoutCallbackAdapter.h"
+#include "FlexLayoutManager.h"
 
+int FlexLayoutManager::VERTICAL = 1;
+void FlexLayoutManager::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass)
+{
+    jfieldID fid = env->GetStaticFieldID(layoutManagerClass, "VERTICAL", "I");
+    if (NULL != fid)
+    {
+        // Sync the value of VERTICAL from java class
+        VERTICAL = env->GetStaticIntField(layoutManagerClass, fid);
+    }
+}
+
+FlexLayoutManager::FlexLayoutManager(JNIEnv* env, jobject layoutManager) : m_orientation(VERTICAL), m_verticalLayout(NULL), m_horizontalLayout(NULL)
+{
+    jclass layoutManagerClass = env->GetObjectClass(layoutManager);
+    jmethodID mid = env->GetMethodID(layoutManagerClass, "getOrientation", "()I");
+    m_orientation = env->CallIntMethod(layoutManager, mid);
+    env->DeleteLocalRef(layoutManagerClass);
+}
+
+FlexLayoutManager::~FlexLayoutManager()
+{
+    if (NULL != m_verticalLayout)
+    {
+        delete m_verticalLayout;
+        m_verticalLayout = NULL;
+    }
+    if (NULL != m_horizontalLayout)
+    {
+        delete m_horizontalLayout;
+        m_horizontalLayout = NULL;
+    }
+}
+
+Size FlexLayoutManager::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo)
+{
+    // if (layoutAndSectionsInfo.orientation != m_orientation)
+    {
+        // Orientation Changed, will recreate Layou object
+        m_orientation = layoutAndSectionsInfo.orientation;
+
+        if (isVertical())
+        {
+            if (NULL != m_horizontalLayout)
+            {
+                delete m_horizontalLayout;
+                m_horizontalLayout = NULL;
+            }
+            if (NULL == m_verticalLayout)
+            {
+                m_verticalLayout = new FlexLayout<true>();
+            }
+        }
+        else
+        {
+            if (NULL != m_verticalLayout)
+            {
+                delete m_verticalLayout;
+                m_verticalLayout = NULL;
+            }
+            if (NULL == m_horizontalLayout)
+            {
+                m_horizontalLayout = new FlexLayout<false>();
+            }
+        }
+    }
+
+    return isVertical() ?
+        m_verticalLayout->prepareLayout(layoutCallbackAdapter, layoutAndSectionsInfo) :
+        m_horizontalLayout->prepareLayout(layoutCallbackAdapter, layoutAndSectionsInfo);
+}
+
+void FlexLayoutManager::updateItems(int action, int itemStart, int itemCount)
+{
+    isVertical() ?
+        m_verticalLayout->updateItems(action, itemStart, itemCount) :
+        m_horizontalLayout->updateItems(action, itemStart, itemCount);
+}
+
+void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, const LayoutInfo &layoutInfo) const
+{
+    isVertical() ?
+        m_verticalLayout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, layoutInfo) :
+        m_horizontalLayout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, layoutInfo);
+}
+
+bool FlexLayoutManager::getItem(int position, LayoutItem &layoutItem) const
+{
+    return isVertical() ?
+        m_verticalLayout->getItem(position, layoutItem) :
+        m_horizontalLayout->getItem(position, layoutItem);
+}
+
+int FlexLayoutManager::computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const
+{
+    return isVertical() ?
+        m_verticalLayout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo, position, positionOffset) :
+        m_horizontalLayout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo, position, positionOffset);
+}
+
+// JNI Functions
 extern "C" JNIEXPORT void JNICALL
 Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_initLayoutEnv(
         JNIEnv* env,
         jclass layoutManagerClass,
         jclass callbackClass) {
+
+    FlexLayoutManager::initLayoutEnv(env, layoutManagerClass);
     LayoutCallbackAdapter::initLayoutEnv(env, layoutManagerClass, callbackClass);
 }
 
@@ -19,9 +124,9 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
         jobject javaThis,
         jobject layoutCallback) {
 
-    FlexLayout *pLayout = new FlexLayout();
+    FlexLayoutManager *layoutManager = new FlexLayoutManager(env, javaThis);
 
-    return reinterpret_cast<long>(pLayout);
+    return reinterpret_cast<long>(layoutManager);
 }
 
 // protected native long releaseLayout();
@@ -31,10 +136,10 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_releaseLayout(
         jobject javaThis,
         jlong layout) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL != layoutManager)
     {
-        delete pLayout;
+        delete layoutManager;
     }
 }
 
@@ -45,10 +150,10 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_addStickyItem(
         jlong layout,
         jint section, jint item) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL != layoutManager)
     {
-        pLayout->addStickyItem(section, item);
+        layoutManager->addStickyItem(section, item);
     }
 }
 
@@ -58,10 +163,10 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_clearStickyItems(
         jobject javaThis,
         jlong layout) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL != layoutManager)
     {
-        pLayout->clearStickyItems();
+        layoutManager->clearStickyItems();
     }
 }
 
@@ -72,24 +177,24 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_setStackedStickyItems(
         jlong layout,
         jboolean stackedStickyItems) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL != layoutManager)
     {
-        pLayout->setStackedStickyItems(stackedStickyItems);
+        layoutManager->setStackedStickyItems(stackedStickyItems);
     }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_isStackedStickyItems(
+        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_isStackedStickyItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout) {
 
     jboolean result = 1;
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL != pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL != layoutManager)
     {
-        result = pLayout->isStackedStickyItems() ? 1 : 0;
+        result = layoutManager->isStackedStickyItems() ? 1 : 0;
     }
 
     return result;
@@ -106,8 +211,8 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
         jobject layoutCallback,
         jintArray layoutAndSectionsInfo) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL == pLayout || NULL == layoutAndSectionsInfo)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL == layoutManager || NULL == layoutAndSectionsInfo)
     {
         return;
     }
@@ -117,6 +222,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
     {
         return;
     }
+
     std::vector<int> buffer;
     buffer.resize(arrayLength);
     env->GetIntArrayRegion(layoutAndSectionsInfo, 0, arrayLength, &(buffer[0]));
@@ -125,11 +231,11 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
 
     LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutAndSectionsInfo);
 
-    pLayout->prepareLayout(layoutCallbackAdapter, localLayoutAndSectionsInfo);
+    layoutManager->prepareLayout(layoutCallbackAdapter, localLayoutAndSectionsInfo);
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
+        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -138,8 +244,8 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
     // void getItemsInRect(std::vector<LayoutItem *> items, const Rect &bounds, const Rect &rect, const Point &contentOffset);
 
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL == pLayout || NULL == layoutInfo)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL == layoutManager || NULL == layoutInfo)
     {
         return NULL;
     }
@@ -158,7 +264,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
     std::vector<LayoutItem> items;
     std::vector<std::pair<StickyItem, Point>> changingStickyItems;
 
-    pLayout->getItemsInRect(items, changingStickyItems, localLayoutInfo.orientation == 1, localLayoutInfo.size, localLayoutInfo.padding, localLayoutInfo.contentOffset);
+    layoutManager->getItemsInRect(items, changingStickyItems, localLayoutInfo);
 
     buffer.clear();
     buffer.reserve(items.size() * 8 + changingStickyItems.size() * 6 + 2);
@@ -180,20 +286,20 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
 
 // int array: left, top, right, bottom
 extern "C" JNIEXPORT jintArray JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_getItemRect(
+        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_getItemRect(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
         jint position) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL == pLayout)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL == layoutManager)
     {
         return NULL;
     }
 
     LayoutItem layoutItem;
-    bool found = pLayout->getItem(position, layoutItem);
+    bool found = layoutManager->getItem(position, layoutItem);
     if (found)
     {
         // return
@@ -208,15 +314,15 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_getItemRect(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_computerContentOffsetToMakePositionTopVisible(
+        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_computerContentOffsetToMakePositionTopVisible(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
         jintArray layoutInfo,
         jint position, int positionOffset) {
 
-    FlexLayout *pLayout = reinterpret_cast<FlexLayout *>(layout);
-    if (NULL == pLayout || NULL == layoutInfo)
+    FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
+    if (NULL == layoutManager || NULL == layoutInfo)
     {
         return INVALID_OFFSET;
     }
@@ -233,5 +339,5 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_computerContentOffsetT
     LayoutInfo localLayoutInfo;
     localLayoutInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
 
-    return pLayout->computerContentOffsetToMakePositionTopVisible(localLayoutInfo, position, positionOffset);
+    return layoutManager->computerContentOffsetToMakePositionTopVisible(localLayoutInfo, position, positionOffset);
 }

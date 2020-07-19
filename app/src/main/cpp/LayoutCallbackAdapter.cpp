@@ -83,6 +83,7 @@ LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject c
     m_cachedBufferSize = 128;
     m_cachedBuffer = NULL;
     m_cachedJavaBuffer = NULL;
+
 }
 
 LayoutCallbackAdapter::~LayoutCallbackAdapter()

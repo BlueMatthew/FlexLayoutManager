@@ -18,22 +18,46 @@
 namespace nsflex
 {
     
-template<class TBaseSection>
+template<class TBaseSection, bool VERTICAL>
 class FlexFlowSectionT : public TBaseSection
 {
 protected:
-    typedef typename TBaseSection::LayoutType TLayout;
-    typedef typename TBaseSection::IntType TInt;
-    typedef typename TBaseSection::CoordinateType TCoordinate;
-    typedef typename TBaseSection::Point Point;
-    typedef typename TBaseSection::Size Size;
-    typedef typename TBaseSection::Rect Rect;
-    typedef typename TBaseSection::Insets Insets;
-    typedef typename TBaseSection::FlexItem FlexItem;
-    typedef FlexRowT<TInt, TCoordinate> FlexRow;
-    typedef typename std::vector<FlexRow *>::const_iterator FlexRowConstIterator;
-    typedef FlexVerticalCompareT<FlexRow> UIFlexRowVerticalCompare;
-    typedef FlexHorizontalCompareT<FlexRow> UIFlexRowHorizontalCompare;
+    using TBase = TBaseSection;
+
+    using TLayout = typename TBaseSection::LayoutType;
+    using TInt = typename TBaseSection::IntType;
+    using TCoordinate = typename TBaseSection::CoordinateType;
+    using Point = typename TBaseSection::Point;
+    using Size = typename TBaseSection::Size;
+    using Rect = typename TBaseSection::Rect;
+    using Insets = typename TBaseSection::Insets;
+
+    using FlexItem = typename TBaseSection::FlexItem;
+    using FlexRow = FlexRowT<TInt, TCoordinate, VERTICAL>;
+    using FlexRowConstIterator = typename std::vector<FlexRow *>::const_iterator;
+
+    using FlexRowVerticalCompare = FlexVerticalCompareT<FlexRow>;
+    using FlexRowHorizontalCompare = FlexHorizontalCompareT<FlexRow>;
+
+    using TBase::x;
+    using TBase::y;
+    using TBase::left;
+    using TBase::top;
+    using TBase::right;
+    using TBase::bottom;
+
+    using TBase::offset;
+    using TBase::offsetX;
+    using TBase::offsetY;
+    using TBase::incWidth;
+
+    using TBase::leftBottom;
+    using TBase::height;
+    using TBase::width;
+
+    using TBase::leftRight;
+    using TBase::topBottom;
+
 
 public:
     std::vector<FlexRow *> m_rows;
@@ -63,7 +87,7 @@ protected:
         TBaseSection::clearItems();
         
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        Point originOfRow(TBaseSection::m_header.getFrame().left(), TBaseSection::m_header.getFrame().bottom());
+        Point originOfRow = leftBottom(TBaseSection::m_header.getFrame());
 #else
         Point originOfRow(TBaseSection::m_header.getFrame().right(), TBaseSection::m_header.getFrame().top());
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -86,7 +110,7 @@ protected:
         TCoordinate minimumInteritemSpacing = TBaseSection::getMinimumInteritemSpacing(layout);
         
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        TCoordinate maximalSizeOfRow = TBaseSection::m_frame.width() - sectionInset.left - sectionInset.right;
+        TCoordinate maximalSizeOfRow = width(TBaseSection::m_frame) - leftRight(sectionInset);
 #else
         TCoordinate maximalSizeOfRow = TBaseSection::m_frame.height() - sectionInset.top - sectionInset.bottom;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -107,7 +131,7 @@ protected:
             frameOfItem.size = TBaseSection::getSizeForItem(layout, itemIndex, NULL);
             
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            sizeOfItemInDirection = frameOfItem.width();
+            sizeOfItemInDirection = width(frameOfItem);
 #else
             sizeOfItemInDirection = frameOfItem.height();
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -117,7 +141,7 @@ protected:
                 if (row->hasItems())
                 {
 #ifdef INTERNAL_VERTICAL_LAYOUT
-                    availableSizeOfRow = maximalSizeOfRow - row->getFrame().width() - minimumInteritemSpacing;
+                    availableSizeOfRow = maximalSizeOfRow - width(row->getFrame()) - minimumInteritemSpacing;
 #else
                     availableSizeOfRow = maximalSizeOfRow - row->getFrame().height() - minimumInteritemSpacing;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -147,7 +171,7 @@ protected:
             if (row->hasItems())
             {
 #ifdef INTERNAL_VERTICAL_LAYOUT
-                frameOfItem.origin.x = row->getFrame().right() + minimumInteritemSpacing;
+                left(frameOfItem, right(row->getFrame()) + minimumInteritemSpacing);
 #else
                 frameOfItem.origin.y = row->getFrame().bottom() + minimumInteritemSpacing;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -169,14 +193,14 @@ protected:
             m_rows.push_back(row);
             
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            originOfRow.y += row->getFrame().height();
+            offsetY(originOfRow, height(row->getFrame()));
 #else
             originOfRow.x += row->getFrame().width();
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
         }
         
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        originOfRow.y += sectionInset.bottom;
+        offsetY(originOfRow, bottom(sectionInset));
 #else
         originOfRow.x += sectionInset.right;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -323,7 +347,7 @@ protected:
     {
         bool matched = false;
         
-        std::pair<FlexRowConstIterator, FlexRowConstIterator> range = vertical ? getVirticalRowsInRect(rectInSection) : getHorizontalRowsInRect(rectInSection);
+        std::pair<FlexRowConstIterator, FlexRowConstIterator> range = std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(top(rectInSection), bottom(rectInSection)), FlexRowVerticalCompare());
         
         FlexRowConstIterator lastRow = range.second - 1;
         for (FlexRowConstIterator it = range.first; it != range.second; ++it)
@@ -341,17 +365,7 @@ protected:
         
         return matched;
     }
-    
-    inline std::pair<FlexRowConstIterator, FlexRowConstIterator> getVirticalRowsInRect(const Rect& rect) const
-    {
-        return std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(rect.top(), rect.bottom()), UIFlexRowVerticalCompare());
-    }
-    
-    inline std::pair<FlexRowConstIterator, FlexRowConstIterator> getHorizontalRowsInRect(const Rect& rect) const
-    {
-        return std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(rect.left(), rect.right()), UIFlexRowHorizontalCompare());
-    }
-    
+
     
 };
 

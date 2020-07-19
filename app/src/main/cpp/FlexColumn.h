@@ -12,17 +12,41 @@
 #include <vector>
 #include <algorithm>
 
+#include "ContainerBase.h"
+
 namespace nsflex
 {
 
 // Column Data for Waterfall Layout
-template <typename TInt, typename TCoordinate>
-class FlexColumnT
+template <typename TInt, typename TCoordinate, bool VERTICAL>
+    class FlexColumnT : public ContainerBaseT<TCoordinate, VERTICAL>
 {
 public:
+    using TBase = ContainerBaseT<TCoordinate, VERTICAL>;
     typedef TCoordinate CoordinateType;
     typedef FlexItemT<TInt, TCoordinate> FlexItem;
     typedef RectT<TCoordinate> Rect;
+
+    using ItemCompare = FlexCompareT<FlexItem, VERTICAL>;
+    
+    using TBase::x;
+    using TBase::y;
+    using TBase::left;
+    using TBase::top;
+    using TBase::right;
+    using TBase::bottom;
+    
+    using TBase::offset;
+    using TBase::offsetX;
+    using TBase::offsetY;
+    using TBase::incWidth;
+    
+    using TBase::leftBottom;
+    using TBase::height;
+    using TBase::width;
+    
+    using TBase::leftRight;
+    using TBase::topBottom;
     
 protected:
     std::vector<FlexItem *> m_items;
@@ -52,11 +76,10 @@ public:
         return m_items.empty();
     }
 
-    inline void addItemVertically(FlexItem *item)
+    inline void addItem(FlexItem *item)
     {
         m_items.push_back(item);
-        m_frame.size.height = item->getFrame().bottom();
-        // m_frame.size.width = CGRectGetMaxX(item->getFrame());
+        height(m_frame, bottom(item->getFrame()));
     }
     
     inline void addItemHorizontally(FlexItem *item)
@@ -65,15 +88,11 @@ public:
         m_frame.size.width = item->getFrame().right();
     }
     
-    inline std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> getVirticalItemsInRect(const Rect& rect)
+    inline std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> getItemsInRect(const Rect& rect)
     {
-        return std::equal_range(m_items.begin(), m_items.end(), std::pair<TCoordinate, TCoordinate>(rect.top(), rect.bottom()), FlexVerticalCompareT<FlexItem>());
+        return std::equal_range(m_items.begin(), m_items.end(), std::pair<TCoordinate, TCoordinate>(top(rect), bottom(rect)), ItemCompare());
     }
-    
-    inline std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> getHorizontalItemsInRect(const Rect& rect)
-    {
-        return std::equal_range(m_items.begin(), m_items.end(), std::pair<TCoordinate, TCoordinate>(rect.left(), rect.right()), FlexHorizontalCompareT<FlexItem>());
-    }
+
 };
 
 

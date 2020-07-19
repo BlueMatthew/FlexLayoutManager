@@ -13,7 +13,8 @@
 #include <map>
 #include <algorithm>
 
-#import "FlexItem.h"
+#include "FlexItem.h"
+#include "ContainerBase.h"
 
 namespace nsflex
 {
@@ -38,19 +39,41 @@ public:
 };
 */
 
-template<class TLayout, class TInt, class TCoordinate>
-class FlexSectionT
+template<class TLayout, class TInt, class TCoordinate, bool VERTICAL>
+    class FlexSectionT : public ContainerBaseT<TCoordinate, VERTICAL>
 {
 public:
-    typedef TLayout LayoutType;
-    typedef TInt IntType;
-    typedef TCoordinate CoordinateType;
-    typedef FlexItemT<TInt, TCoordinate> FlexItem;
-    typedef PointT<TCoordinate> Point;
-    typedef SizeT<TCoordinate> Size;
-    typedef RectT<TCoordinate> Rect;
-    typedef InsetsT<TCoordinate> Insets;
     
+    using TBase = ContainerBaseT<TCoordinate, VERTICAL>;
+    using LayoutType = TLayout;
+    using IntType = TInt;
+    using CoordinateType = TCoordinate;
+    using FlexItem = FlexItemT<TInt, TCoordinate>;
+
+    using Point = PointT<TCoordinate>;
+    using Size = SizeT<TCoordinate>;
+    using Rect = RectT<TCoordinate>;
+    using Insets = InsetsT<TCoordinate>;
+    
+    using TBase::x;
+    using TBase::y;
+    using TBase::left;
+    using TBase::top;
+    using TBase::right;
+    using TBase::bottom;
+    
+    using TBase::offset;
+    using TBase::offsetX;
+    using TBase::offsetY;
+    using TBase::incWidth;
+    
+    using TBase::leftBottom;
+    using TBase::height;
+    using TBase::width;
+    
+    using TBase::leftRight;
+    using TBase::topBottom;
+
 protected:
     TInt m_section;
     Rect m_frame; // // The origin is in the coordinate system of section, should convert to the coordinate system of UICollectionView
@@ -76,7 +99,7 @@ protected:
     FlexItem m_footer;
 
 public:
-    FlexSectionT(TInt section, const Rect& frame) : m_section(section), m_frame(frame), m_header(0), m_footer(0)
+    FlexSectionT(TInt section, const Rect& frame) : ContainerBaseT<TCoordinate, VERTICAL>(), m_section(section), m_frame(frame), m_header(0), m_footer(0)
     {
         m_header.setHeader(true);
         m_footer.setFooter(true);
@@ -125,12 +148,22 @@ public:
     {
         return m_itemsFrame;
     }
+    
+    inline const Rect getItemsFrameInViewAfterItem(int itemIndex) const
+    {
+        FlexItem *item = m_items[itemIndex];
+        FlexItem *itemLast = m_items.back();
+
+        Rect rect(item->getFrame().left(), item->getFrame().bottom(), (*itemLast).getFrame().width(), (*itemLast).getFrame().bottom() - item->getFrame().bottom());
+        rect.offset(m_frame.left(), m_frame.top());
+        return rect;
+    }
 
     inline const Rect getItemsFrameInViewAfterItemVertically(int itemIndex) const
     {
         FlexItem *item = m_items[itemIndex];
         FlexItem *itemLast = m_items.back();
-
+        
         Rect rect(item->getFrame().left(), item->getFrame().bottom(), (*itemLast).getFrame().width(), (*itemLast).getFrame().bottom() - item->getFrame().bottom());
         rect.offset(m_frame.left(), m_frame.top());
         return rect;
@@ -240,9 +273,12 @@ protected:
         
         // Initialize the section height with header height
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        m_frame.size.height = m_header.getFrame().height();
+        height(m_frame, height(m_header.getFrame()));
+        m_itemsFrame.origin = leftBottom(m_frame);
+        width(m_itemsFrame, width(m_frame));
 #else
         m_frame.size.width = m_header.getFrame().width();
+        m_itemsFrame.origin = leftBottom(m_frame);
 #endif // ifdef INTERNAL_VERTICAL_LAYOUT
 
         
@@ -257,8 +293,8 @@ protected:
         m_footer.getFrame().size = getSizeForFooter(layout);
 
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        m_frame.size.height = m_footer.getFrame().bottom();
-        m_itemsFrame.set(m_frame.origin.x, m_frame.origin.y + m_header.getFrame().size.height, m_frame.size.width, m_frame.size.height - m_header.getFrame().size.height - m_footer.getFrame().size.height);
+        height(m_frame, bottom(m_footer.getFrame()));
+        height(m_itemsFrame, height(m_frame) - (height(m_header.getFrame()) + height(m_footer.getFrame())));
 #else
         m_frame.size.width = m_footer.getFrame().right();
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT

@@ -15,20 +15,42 @@
 namespace nsflex
 {
 
-template<typename TBaseSection>
+template<class TBaseSection, bool VERTICAL>
 class FlexWaterfallSectionT : public TBaseSection
 {
 protected:
-    typedef typename TBaseSection::LayoutType TLayout;
-    typedef typename TBaseSection::IntType TInt;
-    typedef typename TBaseSection::CoordinateType TCoordinate;
-    typedef typename TBaseSection::Point Point;
-    typedef typename TBaseSection::Size Size;
-    typedef typename TBaseSection::Rect Rect;
-    typedef typename TBaseSection::Insets Insets;
-    typedef typename TBaseSection::FlexItem FlexItem;
-    typedef FlexColumnT<TInt, TCoordinate> FlexColumn;
-    typedef typename std::vector<FlexColumn *>::const_iterator FlexColumnConstIterator;
+    using TBase = TBaseSection;
+    
+    using TLayout = typename TBaseSection::LayoutType;
+    using TInt = typename TBaseSection::IntType;
+    using TCoordinate = typename TBaseSection::CoordinateType;
+    using Point = typename TBaseSection::Point;
+    using Size = typename TBaseSection::Size;
+    using Rect = typename TBaseSection::Rect;
+    using Insets = typename TBaseSection::Insets;
+    using FlexItem = typename TBaseSection::FlexItem;
+    using FlexColumn = FlexColumnT<TInt, TCoordinate, VERTICAL>;
+    using FlexColumnConstIterator = typename std::vector<FlexColumn *>::const_iterator;
+    
+    using TBase::x;
+    using TBase::y;
+    using TBase::left;
+    using TBase::top;
+    using TBase::right;
+    using TBase::bottom;
+    
+    using TBase::offset;
+    using TBase::offsetX;
+    using TBase::offsetY;
+    using TBase::incWidth;
+    
+    using TBase::leftBottom;
+    using TBase::height;
+    using TBase::width;
+    
+    using TBase::leftRight;
+    using TBase::topBottom;
+    
 
 public:
     std::vector<FlexItem *> m_placeHolderItems;
@@ -64,10 +86,11 @@ protected:
         Insets sectionInset = TBaseSection::getInsets(layout);
         
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        Rect frameOfColumn(sectionInset.left, TBaseSection::m_header.getFrame().bottom() + sectionInset.top, 0, 0);
+        Rect frameOfColumn(leftBottom(TBaseSection::m_header.getFrame()), Size(0, 0));
 #else
-        Rect frameOfColumn(TBaseSection::m_header.getFrame().right() + sectionInset.left, sectionInset.top, 0, 0);
+        Rect frameOfColumn(TBaseSection::m_header.getFrame().right(), 0, 0, 0);
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
+        frameOfColumn.offset(sectionInset.left, sectionInset.top);
 
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
@@ -92,7 +115,7 @@ protected:
         TCoordinate sizeOfColumn = 0.0;
         
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        TCoordinate availableSizeOfColumn = bounds.size.width - (sectionInset.left + sectionInset.right);
+        TCoordinate availableSizeOfColumn = width(bounds) - leftRight(sectionInset);
 #else
         TCoordinate availableSizeOfColumn = bounds.size.height - (sectionInset.top + sectionInset.bottom);
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -111,7 +134,7 @@ protected:
             }
             
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            frameOfColumn.size.width = sizeOfColumn;
+            width(frameOfColumn, sizeOfColumn);
 #else
             frameOfColumn.size.height = sizeOfColumn;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -120,7 +143,7 @@ protected:
             m_columns.push_back(column);
             
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            frameOfColumn.origin.x += sizeOfColumn + minimumInteritemSpacing;
+            offsetX(frameOfColumn, sizeOfColumn + minimumInteritemSpacing);
 #else
             frameOfColumn.origin.y += sizeOfColumn + minimumInteritemSpacing;
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -147,8 +170,8 @@ protected:
 
             // Add spacing for the item which is not first one
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            frameOfItem.origin.x = (*itOfTargetColumn)->getFrame().left();
-            frameOfItem.origin.y = (*itOfTargetColumn)->getFrame().bottom() + ((*itOfTargetColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
+            frameOfItem.origin = leftBottom((*itOfTargetColumn)->getFrame());
+            offsetY(frameOfItem, (*itOfTargetColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
 #else
             frameOfItem.origin.x = (*itOfTargetColumn)->getFrame().right() + ((*itOfTargetColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
             frameOfItem.origin.y = (*itOfTargetColumn)->getFrame().top();
@@ -169,8 +192,8 @@ protected:
                         placeHolder->setPlaceHolder(true);
                         m_placeHolderItems.push_back(placeHolder);
 #ifdef INTERNAL_VERTICAL_LAYOUT
-                        placeHolder->getFrame().origin.y = (*itColumn)->getFrame().bottom() + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
-                        (*itColumn)->addItemVertically(placeHolder);
+                        top(placeHolder->getFrame(), bottom((*itColumn)->getFrame()) + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing));
+                        (*itColumn)->addItem(placeHolder);
 #else
                         placeHolder->getFrame().origin.x = (*itColumn)->getFrame().right() + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
                         (*itColumn)->addItemHorizontally(placeHolder);
@@ -180,7 +203,7 @@ protected:
             }
 
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            (*itOfTargetColumn)->addItemVertically(item);
+            (*itOfTargetColumn)->addItem(item);
 #else
             (*itOfTargetColumn)->addItemHorizontally(item);
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -191,13 +214,15 @@ protected:
         // Find the column with highest height
         typename std::vector<FlexColumn *>::iterator columnItOfMaximalSize = max_element(m_columns.begin(), m_columns.end(), compare);
         
+        Point pt = TBaseSection::m_header.getFrame().origin;
 #ifdef INTERNAL_VERTICAL_LAYOUT
-        return Point(bounds.left(), (*columnItOfMaximalSize)->getFrame().bottom() + sectionInset.bottom);
+        y(pt, bottom((*columnItOfMaximalSize)->getFrame()) + bottom(sectionInset));
 #else
         return Point((*columnItOfMaximalSize)->getFrame().right() + sectionInset.right, bounds.top());
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
 
-
+        return pt;
+        
 #undef INTERNAL_VERTICAL_LAYOUT
     }
     
@@ -320,7 +345,7 @@ protected:
                         m_placeHolderItems.push_back(placeHolder);
 #ifdef INTERNAL_VERTICAL_LAYOUT
                         placeHolder->getFrame().origin.y = (*itColumn)->getFrame().bottom() + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
-                        (*itColumn)->addItemVertically(placeHolder);
+                        (*itColumn)->addItem(placeHolder);
 #else
                         placeHolder->getFrame().origin.x = (*itColumn)->getFrame().right() + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
                         (*itColumn)->addItemHorizontally(placeHolder);
@@ -330,7 +355,7 @@ protected:
             }
 
 #ifdef INTERNAL_VERTICAL_LAYOUT
-            (*itOfTargetColumn)->addItemVertically(item);
+            (*itOfTargetColumn)->addItem(item);
 #else
             (*itOfTargetColumn)->addItemHorizontally(item);
 #endif // #ifdef INTERNAL_VERTICAL_LAYOUT
@@ -358,7 +383,7 @@ protected:
         // Items
         for (FlexColumnConstIterator it = m_columns.begin(); it != m_columns.end(); ++it)
         {
-            std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> range = vertical ? (*it)->getVirticalItemsInRect(rectInSection) : (*it)->getHorizontalItemsInRect(rectInSection);
+            std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> range = (*it)->getItemsInRect(rectInSection);
             
             for (typename std::vector<FlexItem *>::iterator itItem = range.first; itItem != range.second; ++itItem)
             {
