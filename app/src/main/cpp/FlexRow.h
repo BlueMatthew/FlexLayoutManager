@@ -78,20 +78,12 @@ public:
         }
     }
     
-    inline void addItemVertically(FlexItem *item)
+    inline void addItem(FlexItem *item)
     {
         m_items.push_back(item);
         
         incWidth(m_frame, width(item->getFrame()));
         if (height(m_frame) < height(item->getFrame())) height(m_frame, height(item->getFrame()));
-    }
-    
-    inline void addItemHorizontally(FlexItem *item)
-    {
-        m_items.push_back(item);
-        
-        m_frame.size.height += item->getFrame().size.height;
-        if (m_frame.size.width < item->getFrame().size.width) m_frame.size.width = item->getFrame().size.width;
     }
     
     inline std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> getItemIterator()

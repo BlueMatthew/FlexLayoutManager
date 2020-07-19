@@ -47,10 +47,6 @@ public:
     void setPositionBase(int position) { m_position = position; }
 };
 
-
-
-
-
 // using FlexSection = SectionT<true>;
 // typedef nsflex::FlexFlowSectionT<SectionT<true>, true> FlexFlowSection;
 // typedef nsflex::FlexWaterfallSectionT<SectionT<true>, true> FlexWaterfallSection;
@@ -73,9 +69,11 @@ struct FlexSectionPositionCompare
 };
 
 template<bool VERTICAL>
-class FlexLayout
+class FlexLayout : public nsflex::ContainerBaseT<int, VERTICAL>
 {
 public:
+
+    using TBase = nsflex::ContainerBaseT<int, VERTICAL>;
 
     using Section = SectionT<VERTICAL>;
     using FlowSection = typename nsflex::FlexFlowSectionT<Section, VERTICAL>;
@@ -85,6 +83,25 @@ public:
     using SectionConstIterator = typename std::vector<Section *>::const_iterator;
     using SectionConstIteratorPair = std::pair<SectionConstIterator, SectionConstIterator>;
     using SectionPositionCompare = FlexSectionPositionCompare<Section>;
+
+    using TBase::x;
+    using TBase::y;
+    using TBase::left;
+    using TBase::top;
+    using TBase::right;
+    using TBase::bottom;
+
+    using TBase::offset;
+    using TBase::offsetX;
+    using TBase::offsetY;
+    using TBase::incWidth;
+
+    using TBase::leftBottom;
+    using TBase::height;
+    using TBase::width;
+
+    using TBase::leftRight;
+    using TBase::topBottom;
 
 protected:
 
@@ -212,7 +229,7 @@ void FlexLayout<VERTICAL>::getItemsInRect(std::vector<LayoutItem> &items, std::v
     std::vector<const FlexItem *> flexItems;
     for (SectionConstIterator it = range.first; it != range.second; ++it)
     {
-        (*it)->filterInRect(VERTICAL, flexItems, rect);
+        (*it)->filterInRect(flexItems, rect);
         if (flexItems.empty())
         {
             continue;
@@ -427,28 +444,16 @@ int FlexLayout<VERTICAL>::computerContentOffsetToMakePositionTopVisible(std::vec
         }
         else
         {
-#ifdef INTERNAL_VERTICAL_LAYOUT
-            Rect frameItems = section->getItemsFrameInViewAfterItemVertically(it->item);
-            rect.origin.y = std::min(
-                    std::max(layoutInfo.padding.top, (frameItems.origin.y - stickyItemSize)),
-                    (frameItems.bottom() - stickyItemSize)
+            Rect frameItems = section->getItemsFrameInViewAfterItem(it->item);
+            top(rect, std::min(
+                    std::max(top(layoutInfo.padding), top(frameItems) - stickyItemSize),
+                    (bottom(frameItems) - stickyItemSize))
             );
-#else
-            Rect frameItems = section->getItemsFrameInViewAfterItemHorizontally(it->item);
-            rect.origin.x = std::min(
-                    std::max(layoutInfo.padding.left, (frameItems.origin.x - stickyItemSize)),
-                    (frameItems.right() - stickyItemSize)
-            );
-#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
         }
 
         // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
         // Otherwise, we check the top of sticky header
-#ifdef INTERNAL_VERTICAL_LAYOUT
-        bool stickyMode = it->inSticky ? ((layoutInfo.contentOffset.y + layoutInfo.padding.top < rect.origin.y) ? false : true) : ((rect.origin.y >= origin.y) ? true : false);
-#else
-        bool stickyMode = it->inSticky ? ((layoutInfo.contentOffset.x + layoutInfo.padding.left < rect.origin.x) ? false : true) : ((rect.origin.x >= origin.x) ? true : false);
-#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
+        bool stickyMode = it->inSticky ? ((y(layoutInfo.contentOffset) + top(layoutInfo.padding) < top(rect)) ? false : true) : ((top(rect) >= y(origin)) ? true : false);
         if (stickyMode)
         {
             totalStickyItemSize = stackedStickyItems ? (totalStickyItemSize + stickyItemSize) : stickyItemSize;
@@ -458,22 +463,8 @@ int FlexLayout<VERTICAL>::computerContentOffsetToMakePositionTopVisible(std::vec
 
     int contentOffset = 0;
     rect = targetItem->getFrame();
-    rect.offset((*itTargetSection)->getFrame().origin.x, (*itTargetSection)->getFrame().origin.y);
-#ifdef INTERNAL_VERTICAL_LAYOUT
-    contentOffset = rect.top() - layoutInfo.padding.top - totalStickyItemSize + positionOffset;
-#else
-    contentOffset = rect.left() - layoutInfo.padding.left - totalStickyItemSize + positionOffset;
-#endif // #ifdef INTERNAL_VERTICAL_LAYOUT
-
-    if (1 == layoutInfo.orientation)
-    {
-        contentOffset = rect.top() - layoutInfo.padding.top - totalStickyItemSize + positionOffset;
-    }
-    else
-    {
-        contentOffset = rect.left() - layoutInfo.padding.left - totalStickyItemSize + positionOffset;
-    }
-
+    offset(rect, left((*itTargetSection)->getFrame()), top((*itTargetSection)->getFrame()));
+    contentOffset = top(rect) - top(layoutInfo.padding) - totalStickyItemSize + positionOffset;
 
     return contentOffset;
 }

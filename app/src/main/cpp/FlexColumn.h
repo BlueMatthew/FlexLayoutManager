@@ -81,13 +81,7 @@ public:
         m_items.push_back(item);
         height(m_frame, bottom(item->getFrame()));
     }
-    
-    inline void addItemHorizontally(FlexItem *item)
-    {
-        m_items.push_back(item);
-        m_frame.size.width = item->getFrame().right();
-    }
-    
+
     inline std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> getItemsInRect(const Rect& rect)
     {
         return std::equal_range(m_items.begin(), m_items.end(), std::pair<TCoordinate, TCoordinate>(top(rect), bottom(rect)), ItemCompare());

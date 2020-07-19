@@ -42,9 +42,7 @@ namespace nsflex
         
         inline Point& offset(Point &point, TCoordinate x, TCoordinate y) const
         {
-            point.x += x;
-            point.y += y;
-            return point;
+            return offset(point, x, y, bool_trait<VERTICAL>());
         }
         inline Point& offsetX(Point &point, TCoordinate x) const
         {
@@ -58,6 +56,11 @@ namespace nsflex
         // Point Ends
         
         // Size
+        inline Size makeSize(TCoordinate w, TCoordinate h) const
+        {
+            return makeSize(w, h, bool_trait<VERTICAL>());
+        }
+
         inline TCoordinate width(const Size &size) const
         {
             return width(size, bool_trait<VERTICAL>());
@@ -139,8 +142,7 @@ namespace nsflex
         
         inline Rect& offset(Rect &rect, TCoordinate x, TCoordinate y) const
         {
-            rect.offset(x, y);
-            return rect;
+            return offset(rect, x, y, bool_trait<VERTICAL>());
         }
         inline Rect& offsetX(Rect &rect, TCoordinate x) const
         {
@@ -150,12 +152,7 @@ namespace nsflex
         {
             return offsetY(rect, y, bool_trait<VERTICAL>());
         }
-        /*
-        inline void addSize(Rect &rect, TCoordinate dx, TCoordinate dy)
-        {
-            resize(rect, dx, dy, bool_trait<VERTICAL>());
-        }
-         */
+
         inline void incWidth(Rect &rect, TCoordinate dx) const
         {
             incWidth(rect, dx, bool_trait<VERTICAL>());
@@ -235,7 +232,19 @@ namespace nsflex
         {
             point.x = v;
         }
-        
+
+        inline Point& offset(Point &point, TCoordinate x, TCoordinate y, bool_trait<true>) const
+        {
+            point.x += x;
+            point.y += y;
+            return point;
+        }
+        inline Point& offset(Point &point, TCoordinate x, TCoordinate y, bool_trait<false>) const
+        {
+            point.x += y;
+            point.y += x;
+            return point;
+        }
         inline Point& offsetX(Point &point, TCoordinate x, bool_trait<true>) const
         {
             point.x += x;
@@ -260,6 +269,16 @@ namespace nsflex
         // Point Ends
         
         // Size
+
+        inline Size makeSize(TCoordinate w, TCoordinate h, bool_trait<true>) const
+        {
+            return Size(w, h);
+        }
+        inline Size makeSize(TCoordinate w, TCoordinate h, bool_trait<false>) const
+        {
+            return Size(h, w);
+        }
+
         inline TCoordinate width(const Size &size, bool_trait<true>) const
         {
             return size.width;
@@ -417,7 +436,18 @@ namespace nsflex
         {
             rect.size.width = h;
         }
-        
+        inline Rect& offset(Rect &rect, TCoordinate x, TCoordinate y, bool_trait<true>) const
+        {
+            rect.origin.x += x;
+            rect.origin.y += y;
+            return rect;
+        }
+        inline Rect& offset(Rect &rect, TCoordinate x, TCoordinate y, bool_trait<false>) const
+        {
+            rect.origin.x += y;
+            rect.origin.y += x;
+            return rect;
+        }
         inline Rect& offsetX(Rect &rect, TCoordinate x, bool_trait<true>) const
         {
             rect.origin.x += x;
