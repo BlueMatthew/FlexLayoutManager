@@ -14,7 +14,6 @@
 #include <utility>
 #include <memory>
 
-
 namespace nsflex
 {
     

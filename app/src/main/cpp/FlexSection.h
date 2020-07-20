@@ -293,8 +293,6 @@ namespace nsflex
     protected:
 
         virtual Point prepareLayoutWithItems(const TLayout *layout, const Rect &bounds) = 0;
-        // virtual Point prepareLayoutWithItemsHorizontally(const TLayout *layout, const Rect &bounds) = 0;
-
         virtual bool filterItemsInRect(const Rect &rectInSection, std::vector<const FlexItem *> &items) const = 0;
 
         inline const Rect getFrameInView(const Rect& rect) const

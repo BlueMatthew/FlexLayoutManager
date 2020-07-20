@@ -11,13 +11,6 @@
 #ifndef NDEBUG
 #include <string>
 #include <sstream>
-#include <android/log.h>
-
-#define TAG "NDK"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
-
 #endif // NDEBUG
 
 #ifndef WaterfallSection_h
@@ -201,11 +194,6 @@ protected:
 
         y(pt, bottom((*columnItOfMaximalSize)->getFrame()) + bottom(sectionInset));
 
-#ifndef NDEBUG
-        std::string str = printDebugInfo();
-        LOGI("%s", str.c_str());
-
-#endif // #ifndef NDEBUG
         return pt;
     }
 
