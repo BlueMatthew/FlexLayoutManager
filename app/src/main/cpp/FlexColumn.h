@@ -11,6 +11,8 @@
 
 #include <vector>
 #include <algorithm>
+#include <string>
+#include <sstream>
 
 #include "ContainerBase.h"
 
@@ -23,9 +25,9 @@ template <typename TInt, typename TCoordinate, bool VERTICAL>
 {
 public:
     using TBase = ContainerBaseT<TCoordinate, VERTICAL>;
-    typedef TCoordinate CoordinateType;
-    typedef FlexItemT<TInt, TCoordinate> FlexItem;
-    typedef RectT<TCoordinate> Rect;
+    using CoordinateType = TCoordinate;
+    using FlexItem = FlexItemT<TInt, TCoordinate>;
+    using Rect = RectT<TCoordinate>;
 
     using ItemCompare = FlexCompareT<FlexItem, VERTICAL>;
     
@@ -86,6 +88,24 @@ public:
     {
         return std::equal_range(m_items.begin(), m_items.end(), std::pair<TCoordinate, TCoordinate>(top(rect), bottom(rect)), ItemCompare());
     }
+
+#ifndef NDEBUG
+    std::string printDebugInfo(std::string prefix) const
+    {
+        std::ostringstream str;
+
+
+        int idx = 1;
+        for (typename std::vector<FlexItem *>::const_iterator it = m_items.begin(); it != m_items.end(); ++it)
+        {
+            str << prefix << "Item " << idx << "[" << (*it)->getFrame().left() << "," << (*it)->getFrame().top() << "-" << (*it)->getFrame().width() << "," << (*it)->getFrame().height() << "]\r\n";
+
+            idx++;
+        }
+
+        return str.str();
+    }
+#endif // #ifndef NDEBUG
 
 };
 

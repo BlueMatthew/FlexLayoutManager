@@ -13,6 +13,7 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
+import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
 import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.SectionPosition;
 import org.wakin.flexlayout.LayoutManager.Graphics.Size;
@@ -26,6 +27,7 @@ public class MainActivityDataSource {
 
     private static boolean DEBUG = true;
     private static boolean USING_INFLATE = false; // For perf comparison
+    public final static int ORIENTATION = FlexLayoutManager.HORIZONTAL;
 
     public int ITEM_COLUMNS = 2;
     public boolean ITEM_LAYOUT_MODE_WATERFALL = true;
@@ -72,7 +74,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {8000, 2},
+            {8, 2},
             {90, 0},
             {20, 0},
             {120, 0},
@@ -181,6 +183,22 @@ public class MainActivityDataSource {
         CellData cellData = sectionData.items.get(item);
 
         size.set(cellData.width, cellData.height);
+    }
+
+    public void setCellWidth(CellData cellData, int width) {
+        if (ORIENTATION == FlexLayoutManager.VERTICAL) {
+            cellData.width = width;
+        } else {
+            cellData.height = width;
+        }
+    }
+
+    public void setCellHeight(CellData cellData, int height) {
+        if (ORIENTATION == FlexLayoutManager.VERTICAL) {
+            cellData.height = height;
+        } else {
+            cellData.width = height;
+        }
     }
 
     public boolean isItemFullSpan(int section, int item) {
@@ -469,8 +487,8 @@ public class MainActivityDataSource {
         cellData.viewType = VIEW_TYPE_NAV;
         cellData.backgroundColor = dataSourceColors.NavBarColor;
         cellData.text = "Navigation Bar pos=" + section.position;
-        cellData.width = section.calcCellWidth();
-        cellData.height = toPixel(ITEM_HEIGHT_IN_SECTION[section.section]);
+        setCellWidth(cellData, section.calcCellWidth());
+        setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
 
 
         // Entry
@@ -481,8 +499,8 @@ public class MainActivityDataSource {
             cellData.viewType = VIEW_TYPE_ENTRY;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
             cellData.text = "Entry " + idx + " pos=" + (section.position + idx);
-            cellData.width = section.calcCellWidth();
-            cellData.height = toPixel(ITEM_HEIGHT_IN_SECTION[section.section]);
+            setCellWidth(cellData, section.calcCellWidth());
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
         }
 
         // Test 1
@@ -497,8 +515,8 @@ public class MainActivityDataSource {
             } else {
                 cellData.text = "Test1 " + idx + " pos=" + (section.position + idx);
             }
-            cellData.width = section.calcCellWidth();
-            cellData.height = toPixel(ITEM_HEIGHT_IN_SECTION[section.section]);
+            setCellWidth(cellData, section.calcCellWidth());
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
         }
 
         // Test 2
@@ -516,8 +534,8 @@ public class MainActivityDataSource {
             } else {
                 cellData.text = "Test2 " + idx + " pos=" + (section.position + idx);
             }
-            cellData.width = section.calcCellWidth();
-            cellData.height = toPixel(ITEM_HEIGHT_IN_SECTION[section.section]);
+            setCellWidth(cellData, section.calcCellWidth());
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
         }
 
         // Catbar
@@ -527,8 +545,8 @@ public class MainActivityDataSource {
             cellData.viewType = VIEW_TYPE_CAT;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(idx);
             cellData.text = "Category Bar pos=" + (section.position + idx);
-            cellData.width = section.calcCellWidth();
-            cellData.height = toPixel(ITEM_HEIGHT_IN_SECTION[section.section]);
+            setCellWidth(cellData, section.calcCellWidth());
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
         }
 
         int offsetBase = NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length;
@@ -569,17 +587,17 @@ public class MainActivityDataSource {
             if (cellData.fullSpan) {
                 cellData.viewType = VIEW_TYPE_FULL_SPAN;
                 cellData.backgroundColor = dsColors.itemColors[bgIndex % dsColors.itemColors.length];
-                cellData.width = section.calcFullSpanWidth();
-                cellData.height = toPixel(ITEM_HEIGHT_FULL_SPAN);
+                setCellWidth(cellData, section.calcFullSpanWidth());
+                setCellHeight(cellData, toPixel(ITEM_HEIGHT_FULL_SPAN));
                 cellData.text = String.format("FullSpan Item: %d, item=%d", page, idx) + " pos=" + (section.position + idx);
             } else {
                 cellData.viewType = (section.columns == 1) ? VIEW_TYPE_ITEM : VIEW_TYPE_ITEM_HALF_SIZE;
                 cellData.backgroundColor = dsColors.itemColors[bgIndex % dsColors.itemColors.length];
-                cellData.width = section.calcCellWidth();
+                setCellWidth(cellData, section.calcCellWidth());
                 if (section.columns == 1) {
-                    cellData.height = toPixel(itemHeights[(idx % itemHeights.length)]);
+                    setCellHeight(cellData, toPixel(itemHeights[(idx % itemHeights.length)]));
                 } else {
-                    cellData.height = (int)Math.floor(cellData.width) + toPixel(itemHeights[(idx % itemHeights.length)]);
+                    setCellHeight(cellData, (int)Math.floor(cellData.width) + toPixel(itemHeights[(idx % itemHeights.length)]));
                 }
                 cellData.text = String.format(textFormat, page, idx) + " pos=" + (section.position + idx);
             }
@@ -691,7 +709,10 @@ public class MainActivityDataSource {
         }
 
         public int calcFullSpanWidth() {
-            return (mBoundWidth - insets.left - insets.right);
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
+
+            return (boundWidth - leftRightOfInsets);
         }
 
         public int calcCellWidth() {
@@ -699,7 +720,12 @@ public class MainActivityDataSource {
             if (columns < 1) {
                 columns = 1;
             }
-            int width = (columns == 1) ? (mBoundWidth - insets.left - insets.right) : ((mBoundWidth - insets.left - insets.right - (columns - 1) * lineSpacing) / columns);
+
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
+
+
+            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * lineSpacing) / columns);
 
             return width;
         }
@@ -709,7 +735,11 @@ public class MainActivityDataSource {
             if (columns < 1) {
                 columns = 1;
             }
-            int width = (columns == 1) ? (mBoundWidth - insets.left - insets.right) : ((mBoundWidth - insets.left - insets.right - (columns - 1) * lineSpacing) / columns);
+
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
+
+            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * lineSpacing) / columns);
 
             return width;
         }

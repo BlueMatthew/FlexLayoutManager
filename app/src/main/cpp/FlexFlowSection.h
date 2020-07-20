@@ -36,8 +36,7 @@ protected:
     using FlexRow = FlexRowT<TInt, TCoordinate, VERTICAL>;
     using FlexRowConstIterator = typename std::vector<FlexRow *>::const_iterator;
 
-    using FlexRowVerticalCompare = FlexVerticalCompareT<FlexRow>;
-    using FlexRowHorizontalCompare = FlexHorizontalCompareT<FlexRow>;
+    using RowCompare = FlexCompareT<FlexRow, VERTICAL>;
 
     using TBase::x;
     using TBase::y;
@@ -57,6 +56,7 @@ protected:
 
     using TBase::leftRight;
     using TBase::topBottom;
+    using TBase::makePoint;
 
 
 public:
@@ -84,7 +84,7 @@ protected:
         clearRows();
         TBaseSection::clearItems();
         
-        Point originOfRow = leftBottom(TBaseSection::m_header.getFrame());
+        Point originOfRow = makePoint(left(TBaseSection::m_frame), height(TBaseSection::m_frame));
 
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
@@ -113,8 +113,8 @@ protected:
         TCoordinate availableSizeOfRow = 0.0f;
         TCoordinate sizeOfItemInDirection = 0.0f;
         
-        originOfRow.x += sectionInset.left;
-        originOfRow.y += sectionInset.top;
+        offset(originOfRow, left(sectionInset), top(sectionInset));
+        // originOfRow.y += sectionInset.top;
         
         for (TInt itemIndex = 0; itemIndex < numberOfItems; itemIndex++)
         {
@@ -132,7 +132,7 @@ protected:
                     {
                         // New Line
                         m_rows.push_back(row);
-                        originOfRow.y += minimumLineSpacing + row->getFrame().height();
+                        offsetY(originOfRow, minimumLineSpacing + height(row->getFrame()));
                         row = NULL;
                     }
                 }
@@ -175,7 +175,7 @@ protected:
     {
         bool matched = false;
         
-        std::pair<FlexRowConstIterator, FlexRowConstIterator> range = std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(top(rectInSection), bottom(rectInSection)), FlexRowVerticalCompare());
+        std::pair<FlexRowConstIterator, FlexRowConstIterator> range = std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(top(rectInSection), bottom(rectInSection)), RowCompare());
         
         FlexRowConstIterator lastRow = range.second - 1;
         for (FlexRowConstIterator it = range.first; it != range.second; ++it)

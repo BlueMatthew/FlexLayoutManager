@@ -1,6 +1,7 @@
 //
 // Created by Matthew Shi on 2020-07-19.
 //
+#define NDK_DEBUG
 #include <jni.h>
 #include <vector>
 #include "FlexLayout.h"
@@ -42,34 +43,30 @@ FlexLayoutManager::~FlexLayoutManager()
 
 Size FlexLayoutManager::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo)
 {
-    // if (layoutAndSectionsInfo.orientation != m_orientation)
-    {
-        // Orientation Changed, will recreate Layou object
-        m_orientation = layoutAndSectionsInfo.orientation;
+    m_orientation = layoutAndSectionsInfo.orientation;
 
-        if (isVertical())
+    if (isVertical())
+    {
+        if (NULL != m_horizontalLayout)
         {
-            if (NULL != m_horizontalLayout)
-            {
-                delete m_horizontalLayout;
-                m_horizontalLayout = NULL;
-            }
-            if (NULL == m_verticalLayout)
-            {
-                m_verticalLayout = new FlexLayout<true>();
-            }
+            delete m_horizontalLayout;
+            m_horizontalLayout = NULL;
         }
-        else
+        if (NULL == m_verticalLayout)
         {
-            if (NULL != m_verticalLayout)
-            {
-                delete m_verticalLayout;
-                m_verticalLayout = NULL;
-            }
-            if (NULL == m_horizontalLayout)
-            {
-                m_horizontalLayout = new FlexLayout<false>();
-            }
+            m_verticalLayout = new VerticalLayout();
+        }
+    }
+    else
+    {
+        if (NULL != m_verticalLayout)
+        {
+            delete m_verticalLayout;
+            m_verticalLayout = NULL;
+        }
+        if (NULL == m_horizontalLayout)
+        {
+            m_horizontalLayout = new HorizontalLayout();
         }
     }
 

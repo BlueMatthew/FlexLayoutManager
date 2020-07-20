@@ -17,10 +17,13 @@ public:
         return VERTICAL == orientation;
     }
 
+    using VerticalLayout = FlexLayout<int, int, true>;
+    using HorizontalLayout = FlexLayout<int, int, false>;
+
 protected:
     int m_orientation;
-    FlexLayout<true> *m_verticalLayout;
-    FlexLayout<false> *m_horizontalLayout;
+    VerticalLayout *m_verticalLayout;
+    HorizontalLayout *m_horizontalLayout;
 
     // As layout will be recreated once orientation is changed. But sticky items info won't.
     // We put sticky items info in the LayoutManager to avoid being destroyed.

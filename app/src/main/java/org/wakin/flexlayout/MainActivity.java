@@ -1,6 +1,7 @@
 package org.wakin.flexlayout;
 
 
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Handler;
@@ -17,6 +18,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AbsoluteLayout;
 
+import org.wakin.flexlayout.LayoutManager.FlexLayoutHelper;
 import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.LayoutCallback;
 import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
@@ -29,8 +31,8 @@ import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
-    private static String TAG = "Flex";
-    private static boolean DEBUG = true;
+    private final static String TAG = "Flex";
+    private final static boolean DEBUG = true;
     private static Object PRELOAD_FLAG = new Object();
     private static Object PRELOAD_FLAG_SWAP = new Object();
 
@@ -182,10 +184,21 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         super.onDestroy();
     }
 
+    @Override
+    protected void onResume() {
+        int targetOrientation = (MainActivityDataSource.ORIENTATION == FlexLayoutManager.VERTICAL) ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+        if(getRequestedOrientation() != targetOrientation) {
+            setRequestedOrientation(targetOrientation);
+        }
+
+        super.onResume();
+    }
+
+
     private void setFlexLayoutManager() {
 
         mRecyclerView.setBackgroundColor(Color.LTGRAY);
-        FlexLayoutManager layoutManager = new FlexLayoutManager(this, FlexLayoutManager.VERTICAL, false, this);
+        FlexLayoutManager layoutManager = new FlexLayoutManager(this, MainActivityDataSource.ORIENTATION, false, this);
 
         for (SectionPosition sp : mDataSource.getStickyItems()) {
             layoutManager.addStickyItem(sp.section, sp.item);
