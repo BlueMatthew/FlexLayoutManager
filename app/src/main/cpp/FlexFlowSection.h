@@ -84,17 +84,16 @@ protected:
         clearRows();
         TBaseSection::clearItems();
         
-        Point originOfRow = makePoint(left(TBaseSection::m_frame), height(TBaseSection::m_frame));
-
+        Point pt = makePoint(0, height(TBaseSection::m_frame));
+        
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
         {
-            return originOfRow;
+            return pt;
         }
+        TBaseSection::m_items.reserve(numberOfItems);
         
         Insets sectionInset = TBaseSection::getInsets(layout);
-        
-        TBaseSection::m_items.reserve(numberOfItems);
         
         // For FlowLayout, there is no column property but we still try to get the number of columns, and use it to estimate the number of rows
         TInt numberOfColumns = TBaseSection::getNumberOfColumns(layout);
@@ -103,18 +102,17 @@ protected:
         TCoordinate minimumLineSpacing = TBaseSection::getMinimumLineSpacing(layout);
         TCoordinate minimumInteritemSpacing = TBaseSection::getMinimumInteritemSpacing(layout);
         
-        TCoordinate maximalSizeOfRow = width(TBaseSection::m_frame) - leftRight(sectionInset);
+        TCoordinate maximalSizeOfRow = width(bounds) - leftRight(sectionInset);
 
         // Layout items
         FlexItem *sectionItem = NULL;
         FlexRow *row = NULL;
         
-        Rect frameOfItem(originOfRow.x, originOfRow.y, 0, 0);
-        TCoordinate availableSizeOfRow = 0.0f;
-        TCoordinate sizeOfItemInDirection = 0.0f;
-        
+        Point originOfRow(pt);
         offset(originOfRow, left(sectionInset), top(sectionInset));
-        // originOfRow.y += sectionInset.top;
+        Rect frameOfItem(originOfRow.x, originOfRow.y, 0, 0);
+        TCoordinate availableSizeOfRow = 0;
+        TCoordinate sizeOfItemInDirection = 0;
         
         for (TInt itemIndex = 0; itemIndex < numberOfItems; itemIndex++)
         {
@@ -166,8 +164,9 @@ protected:
         }
         
         offsetY(originOfRow, bottom(sectionInset));
+        y(pt, y(originOfRow));
 
-        return originOfRow;
+        return pt;
     }
     
 
