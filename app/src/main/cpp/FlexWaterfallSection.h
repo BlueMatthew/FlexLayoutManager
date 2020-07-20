@@ -92,7 +92,7 @@ protected:
     /// Keep the commented code of "horizontally" parts
     Point prepareLayoutWithItems(const TLayout *layout, const Rect &bounds)
     {
-        Point pt = makePoint(left(TBaseSection::m_frame), height(TBaseSection::m_frame));
+        Point pt = makePoint(0, height(TBaseSection::m_frame));
 
         // Items
         clearColumns();
