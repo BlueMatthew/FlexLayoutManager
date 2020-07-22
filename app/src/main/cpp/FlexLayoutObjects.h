@@ -40,23 +40,23 @@ struct LayoutItem
     LayoutItem(const LayoutItem *src) : LayoutItem(*src) {}
 
 
-    bool operator==(const LayoutItem &other)
+    bool operator==(const LayoutItem &other) const
     {
         if (this == &other) return true;
         return section == other.section && item == other.item;
     }
 
-    bool operator==(const LayoutItem *other)
+    bool operator==(const LayoutItem *other) const
     {
         return *this == *other;
     }
 
-    bool operator!=(const LayoutItem &other)
+    bool operator!=(const LayoutItem &other) const
     {
         return !(*this == other);
     }
 
-    bool operator!=(const LayoutItem *other)
+    bool operator!=(const LayoutItem *other) const
     {
         return !(*this == *other);
     }

@@ -69,7 +69,7 @@ struct FlexSectionPositionCompare
 };
 
 template<class TInt, class TCoordinate, bool VERTICAL>
-class FlexLayout : public nsflex::ContainerBaseT<int, VERTICAL>
+class FlexLayout : public nsflex::ContainerBaseT<TInt, VERTICAL>
 {
 public:
 
@@ -99,8 +99,8 @@ public:
     using TBase::height;
     using TBase::width;
 
-    using TBase::leftRight;
-    using TBase::topBottom;
+    using TBase::hinsets;
+    using TBase::vinsets;
     using TBase::makeSize;
     using TBase::makeRect;
 

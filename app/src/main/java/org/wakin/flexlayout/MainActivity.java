@@ -1,6 +1,7 @@
 package org.wakin.flexlayout;
 
 
+import android.app.Activity;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;

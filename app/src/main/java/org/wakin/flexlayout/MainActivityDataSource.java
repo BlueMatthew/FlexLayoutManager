@@ -27,7 +27,7 @@ public class MainActivityDataSource {
 
     private static boolean DEBUG = true;
     private static boolean USING_INFLATE = false; // For perf comparison
-    public final static int ORIENTATION = FlexLayoutManager.HORIZONTAL;
+    public final static int ORIENTATION = FlexLayoutManager.VERTICAL;
 
     public int ITEM_COLUMNS = 2;
     public boolean ITEM_LAYOUT_MODE_WATERFALL = true;
@@ -74,7 +74,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {8, 2},
+            {2000, 2},
             {90, 0},
             {20, 0},
             {120, 0},
@@ -709,7 +709,7 @@ public class MainActivityDataSource {
         }
 
         public int calcFullSpanWidth() {
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)  : mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
             int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
 
             return (boundWidth - leftRightOfInsets);
@@ -721,7 +721,7 @@ public class MainActivityDataSource {
                 columns = 1;
             }
 
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)  : mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
             int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
 
 
@@ -736,7 +736,7 @@ public class MainActivityDataSource {
                 columns = 1;
             }
 
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth : mBoundHeight;
+            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)) : (mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom));
             int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
 
             int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * lineSpacing) / columns);
