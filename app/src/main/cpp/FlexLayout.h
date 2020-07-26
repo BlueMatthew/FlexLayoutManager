@@ -145,7 +145,7 @@ public:
                                    static_cast<Section *>(new FlowSection(sectionIndex, rectOfSection));
 
             section->setPositionBase(positionBase);
-            section->prepareLayout(&layoutCallbackAdapter, bounds);
+            section->prepareLayout(&layoutCallbackAdapter, bounds.size);
 
             m_sections.push_back(section);
 

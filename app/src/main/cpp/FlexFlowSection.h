@@ -37,7 +37,7 @@ protected:
 
     using RowCompare = FlexCompareT<FlexRow, VERTICAL>;
 
-    using TBase::x;
+    // using TBase::x;
     using TBase::y;
     using TBase::left;
     using TBase::top;
@@ -45,22 +45,23 @@ protected:
     using TBase::bottom;
 
     using TBase::offset;
-    using TBase::offsetX;
+    // using TBase::offsetX;
     using TBase::offsetY;
-    using TBase::incWidth;
+    // using TBase::incWidth;
 
-    using TBase::leftBottom;
+    // using TBase::leftBottom;
     using TBase::height;
     using TBase::width;
 
     using TBase::hinsets;
-    using TBase::vinsets;
+    // using TBase::vinsets;
     using TBase::makePoint;
 
 
-public:
+protected:
     std::vector<FlexRow *> m_rows;
     
+public:
     FlexFlowSectionT(TInt section, const Rect &frame) : TBaseSection(section, frame)
     {
     }
@@ -77,18 +78,16 @@ protected:
         m_rows.clear();
     }
 
-    Point prepareLayoutWithItems(const TLayout *layout, const Rect &bounds)
+    void prepareItemsLayout(const TLayout *layout, const Size &size)
     {
         // Items
         clearRows();
         TBaseSection::clearItems();
-        
-        Point pt = makePoint(0, height(TBaseSection::m_frame));
-        
+
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
         {
-            return pt;
+            return;
         }
         TBaseSection::m_items.reserve(numberOfItems);
         
@@ -101,14 +100,12 @@ protected:
         TCoordinate minimumLineSpacing = TBaseSection::getMinimumLineSpacing(layout);
         TCoordinate minimumInteritemSpacing = TBaseSection::getMinimumInteritemSpacing(layout);
         
-        TCoordinate maximalSizeOfRow = width(bounds) - hinsets(sectionInset);
+        TCoordinate maximalSizeOfRow = width(size) - hinsets(sectionInset);
 
         // Layout items
-        FlexItem *sectionItem = NULL;
         FlexRow *row = NULL;
         
-        Point originOfRow(pt);
-        offset(originOfRow, left(sectionInset), top(sectionInset));
+        Point originOfRow(sectionInset.left, sectionInset.top);
         Rect frameOfItem(originOfRow.x, originOfRow.y, 0, 0);
         TCoordinate availableSizeOfRow = 0;
         TCoordinate sizeOfItemInDirection = 0;
@@ -148,30 +145,26 @@ protected:
                 left(frameOfItem, right(row->getFrame()) + minimumInteritemSpacing);
             }
             
-            sectionItem = new FlexItem(itemIndex, frameOfItem);
+            FlexItem *item = new FlexItem(itemIndex, frameOfItem);
             
-            TBaseSection::m_items.push_back(sectionItem);
-            row->addItem(sectionItem);
+            TBaseSection::m_items.push_back(item);
+            row->addItem(item);
         }
         
-        // The last row
+        // The last row MUST go here. If row is NULL, there is no items
         if (NULL != row)
         {
             m_rows.push_back(row);
             
-            offsetY(originOfRow, height(row->getFrame()));
+            height(TBaseSection::m_itemsFrame, bottom(row->getFrame()));
+            height(TBaseSection::m_frame, bottom(TBaseSection::m_itemsFrame));
         }
-        
-        offsetY(originOfRow, bottom(sectionInset));
-        y(pt, y(originOfRow));
-
-        return pt;
     }
     
-
     bool filterItemsInRect(const Rect &rectInSection, std::vector<const FlexItem *> &items) const
     {
-        bool matched = false;
+        // As iterator will be changed once array is re-allocated on inserting, we use size to check if there is change
+        typename std::vector<const FlexItem *>::size_type orgSize = items.size();
         
         std::pair<FlexRowConstIterator, FlexRowConstIterator> range = std::equal_range(m_rows.begin(), m_rows.end(), std::pair<TCoordinate, TCoordinate>(top(rectInSection), bottom(rectInSection)), RowCompare());
         
@@ -184,12 +177,11 @@ protected:
                 if ((it != range.first && it != lastRow) || (*itItem)->getFrame().intersects(rectInSection))
                 {
                     items.push_back(*itItem);
-                    matched = true;
                 }
             }
         }
         
-        return matched;
+        return orgSize != items.size();
     }
 
     

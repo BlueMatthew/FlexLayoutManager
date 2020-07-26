@@ -33,22 +33,24 @@ protected:
     using Rect = typename TBaseSection::Rect;
     using Insets = typename TBaseSection::Insets;
     using FlexItem = typename TBaseSection::FlexItem;
+    using FlexItemLessCompare = FlexItemLessCompareT<TInt, TCoordinate>;
     using FlexColumn = FlexColumnT<TInt, TCoordinate, VERTICAL>;
+    using FlexItemIterator = typename std::vector<FlexItem *>::iterator;
+    using FlexColumnIterator = typename std::vector<FlexColumn *>::iterator;
     using FlexColumnConstIterator = typename std::vector<FlexColumn *>::const_iterator;
-
     using ColumnSizeCompare = FlexSizeCompare<FlexColumn, VERTICAL>;
     
     using TBase::x;
-    using TBase::y;
+    // using TBase::y;
     using TBase::left;
     using TBase::top;
-    using TBase::right;
+    // using TBase::right;
     using TBase::bottom;
     
     using TBase::offset;
     using TBase::offsetX;
     using TBase::offsetY;
-    using TBase::incWidth;
+    // using TBase::incWidth;
     
     using TBase::leftBottom;
     using TBase::height;
@@ -60,10 +62,11 @@ protected:
     using TBase::makePoint;
     
 
-public:
+protected:
     std::vector<FlexItem *> m_placeHolderItems;
     std::vector<FlexColumn *> m_columns;
-    
+
+public:
     FlexWaterfallSectionT(TInt section, const Rect &frame) : TBaseSection(section, frame)
     {
     }
@@ -77,30 +80,27 @@ protected:
     
     inline void clearColumns()
     {
-        for(typename std::vector<FlexColumn *>::iterator it = m_columns.begin(); it != m_columns.end(); delete *it, ++it);
+        for(FlexColumnIterator it = m_columns.begin(); it != m_columns.end(); delete *it, ++it);
         m_columns.clear();
-        for(typename std::vector<FlexItem *>::iterator it = m_placeHolderItems.begin(); it != m_placeHolderItems.end(); delete *it, ++it);
+        for(FlexItemIterator it = m_placeHolderItems.begin(); it != m_placeHolderItems.end(); delete *it, ++it);
+        m_placeHolderItems.clear();
     }
     
     /// Keep the commented code of "horizontally" parts
-    Point prepareLayoutWithItems(const TLayout *layout, const Rect &bounds)
+    void prepareItemsLayout(const TLayout *layout, const Size &size)
     {
-        Point pt = makePoint(0, height(TBaseSection::m_frame));
-
         // Items
         clearColumns();
         TBaseSection::clearItems();
 
-        Insets sectionInset = TBaseSection::getInsets(layout);
-        
-        Rect frameOfColumn(pt, Size(0, 0));
-        frameOfColumn.offset(sectionInset.left, sectionInset.top);
-
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
         {
-            return frameOfColumn.origin;
+            return;
         }
+        
+        Insets sectionInset = TBaseSection::getInsets(layout);
+        Rect frameOfColumn(sectionInset.left, sectionInset.top, 0, 0);
         
         TBaseSection::m_items.reserve(numberOfItems);
 
@@ -118,7 +118,7 @@ protected:
         TInt estimatedNumberOfItems = (TInt)ceil(numberOfItems / numberOfColumns);
         TCoordinate sizeOfColumn = 0.0;
         
-        TCoordinate availableSizeOfColumn = width(bounds) - hinsets(sectionInset);
+        TCoordinate availableSizeOfColumn = width(size) - hinsets(sectionInset);
 
         for (TInt columnIndex = 0; columnIndex < numberOfColumns; columnIndex++)
         {
@@ -189,12 +189,10 @@ protected:
         }
         
         // Find the column with highest height
-        typename std::vector<FlexColumn *>::iterator columnItOfMaximalSize = max_element(m_columns.begin(), m_columns.end(), compare);
+        FlexColumnConstIterator columnItOfMaximalSize = max_element(m_columns.begin(), m_columns.end(), compare);
         
-
-        y(pt, bottom((*columnItOfMaximalSize)->getFrame()) + bottom(sectionInset));
-
-        return pt;
+        height(TBaseSection::m_itemsFrame, bottom((*columnItOfMaximalSize)->getFrame()) + bottom(sectionInset));
+        height(TBaseSection::m_frame, bottom(TBaseSection::m_itemsFrame));
     }
 
 #ifndef NDEBUG
@@ -216,12 +214,23 @@ protected:
 
     bool filterItemsInRect(const Rect &rectInSection, std::vector<const FlexItem *> &items) const
     {
-        bool matched = false;
+        typename std::vector<const FlexItem *>::size_type orgSize = items.size();
+        bool firstColumn = true;
+        FlexItemLessCompare comp;
         
         // Items
         for (FlexColumnConstIterator it = m_columns.begin(); it != m_columns.end(); ++it)
         {
             std::pair<typename std::vector<FlexItem *>::iterator, typename std::vector<FlexItem *>::iterator> range = (*it)->getItemsInRect(rectInSection);
+            
+            if (range.first == range.second)
+            {
+                continue;
+            }
+            
+            items.reserve(items.size() + (range.second - range.first) * m_columns.size());
+            
+            typename std::vector<const FlexItem *>::iterator itToInsert = items.begin() + orgSize;
             
             for (typename std::vector<FlexItem *>::iterator itItem = range.first; itItem != range.second; ++itItem)
             {
@@ -229,13 +238,30 @@ protected:
                 {
                     continue;
                 }
-
-                items.push_back(*itItem);
-                matched = true;
+                
+                if (firstColumn)
+                {
+                    items.push_back(*itItem);
+                }
+                else
+                {
+                    // Keep sorted when we insert
+                    if (itToInsert != items.end())
+                    {
+                        itToInsert = std::lower_bound(itToInsert, items.end(), (*itItem), comp);
+                    }
+                    items.insert(itToInsert, *itItem);
+                    ++itToInsert;
+                }
+            }
+            if (firstColumn)
+            {
+                firstColumn = false;
+                
             }
         }
         
-        return matched;
+        return orgSize != items.size();;
     }
     
 };

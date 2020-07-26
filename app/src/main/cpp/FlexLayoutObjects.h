@@ -20,8 +20,6 @@ typedef nsflex::RectT<int> Rect;
 typedef nsflex::InsetsT<int> Insets;
 
 typedef nsflex::FlexItemT<int, int> FlexItem;
-typedef nsflex::FlexVerticalCompareT<FlexItem> FlexItemVerticalCompare;
-typedef nsflex::FlexHorizontalCompareT<FlexItem> FlexItemHorizontalCompare;
 
 
 struct LayoutItem
