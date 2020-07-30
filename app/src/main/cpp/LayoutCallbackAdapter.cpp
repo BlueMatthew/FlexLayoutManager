@@ -101,7 +101,7 @@ LayoutCallbackAdapter::~LayoutCallbackAdapter()
 
     if (NULL != m_itemSize)
     {
-        m_env->DeleteLocalRef(m_itemSize);
+        m_env->DeleteGlobalRef(m_itemSize);
         m_itemSize = NULL;
     }
 }
