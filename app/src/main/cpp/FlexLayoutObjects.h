@@ -145,7 +145,7 @@ struct StickyItem
         return !(*this == other);
     }
 
-    bool operator<(const StickyItem &other)
+    bool operator<(const StickyItem &other) const
     {
         return (section < other.section) || ((section == other.section) && item == other.item);
     }
@@ -163,7 +163,7 @@ struct LayoutStickyItemCompare
 
 struct SectionInfo
 {
-    int section;    // For increasemental update
+    int section;    // For incremental update
     int layoutMode;
     Insets padding;
     int numberOfItems;
