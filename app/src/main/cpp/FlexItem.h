@@ -99,6 +99,7 @@ namespace nsflex
         inline void setPlaceHolder(bool placeHolder) { m_placeHolder = placeHolder ? 1 : 0; }
 
         inline TInt getItem() const { return m_item; }
+        inline void setItem(TInt itemIndex) { m_item = itemIndex; }
         inline Rect &getFrame() { return m_frame; }
         inline Rect getFrame() const { return m_frame; }
 
@@ -112,6 +113,10 @@ namespace nsflex
         {
             return *lhs < *rhs;
         }
+        inline bool operator() ( const FlexItem* lhs, TInt item) const
+        {
+            return lhs->getItem() < item;
+        }
     };
     
     template <typename TInt, typename TCoordinate>
@@ -121,6 +126,10 @@ namespace nsflex
         inline bool operator() ( const FlexItem* lhs, const FlexItem *rhs) const
         {
             return *lhs > *rhs;
+        }
+        inline bool operator() ( const FlexItem* lhs, TInt item) const
+        {
+            return lhs->getItem() > item;
         }
     };
 

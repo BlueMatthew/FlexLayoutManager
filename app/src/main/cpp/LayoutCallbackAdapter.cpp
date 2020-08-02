@@ -43,7 +43,6 @@ void LayoutCallbackAdapter::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass
     jclass pointClass = env->FindClass("android/graphics/Point");
     m_pointConstructorMid = env->GetMethodID(pointClass, "<init>", "(II)V");
     env->DeleteLocalRef(pointClass);
-
     // org/wakin/flexlayout/LayoutManager/Size
     jclass sizeClass = env->FindClass(JAVA_CLASS_SIZE);
 
@@ -83,7 +82,6 @@ LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject c
     m_cachedBufferSize = 128;
     m_cachedBuffer = NULL;
     m_cachedJavaBuffer = NULL;
-
 }
 
 LayoutCallbackAdapter::~LayoutCallbackAdapter()

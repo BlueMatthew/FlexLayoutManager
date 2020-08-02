@@ -76,6 +76,18 @@ public:
         clearColumns();
     }
     
+    // Override
+    void deleteItem(TInt itemIndex)
+    {
+        // Before the item is deleted, we have to remove the item pointer from columns first to avoid exception of bad address
+        if (!TBaseSection::m_items.empty())
+        {
+            // In most cases, we removes items from end and it is enought to just check and remove the last item
+            (TBaseSection::m_items.back()->getItem() == itemIndex) ? removeLastItemInColumnsIfEquals(itemIndex, false) : removeItemsInColumns(itemIndex, false);
+        }
+        TBaseSection::deleteItem(itemIndex);
+    }
+    
 protected:
     
     inline void clearColumns()
@@ -86,95 +98,149 @@ protected:
         m_placeHolderItems.clear();
     }
     
-    /// Keep the commented code of "horizontally" parts
+    inline void removeItemsInColumns(TInt itemStart, bool includingPlaceHolder = true)
+    {
+        for (FlexColumnIterator it = m_columns.begin(); it != m_columns.end(); ++it)
+        {
+            (*it)->removeItemsFrom(itemStart);
+        }
+        if (includingPlaceHolder)
+        {
+            removePlaceHolderItems(itemStart);
+        }
+    }
+    
+    inline void removePlaceHolderItems(TInt itemStart)
+    {
+        FlexItemIterator it = std::lower_bound(m_placeHolderItems.begin(), m_placeHolderItems.end(), itemStart, FlexItemLessCompareT<TInt, TCoordinate>());
+        if (it != m_placeHolderItems.end())
+        {
+            for (; it != m_placeHolderItems.end(); ++it)
+            {
+                delete (*it);
+            }
+            m_placeHolderItems.erase(it, m_placeHolderItems.end());
+        }
+    }
+
+    inline void removeLastItemInColumnsIfEquals(TInt itemIndex, bool includingPlaceHolder = true)
+    {
+        for (FlexColumnIterator it = m_columns.begin(); it != m_columns.end(); ++it)
+        {
+            (*it)->removeLastItemIfEquals(itemIndex);
+        }
+        if (includingPlaceHolder)
+        {
+            removePlaceHolderItems(itemIndex);
+        }
+    }
+    
+    // Override
     void prepareItemsLayout(const TLayout *layout, const Size &size)
     {
         // Items
-        clearColumns();
-        TBaseSection::clearItems();
+        // clearColumns();
+        // TBaseSection::clearItems();
 
         TInt numberOfItems = TBaseSection::getNumberOfItems(layout);
         if (numberOfItems == 0)
         {
+            clearColumns();
+            TBaseSection::clearItems();
             return;
         }
-        
-        Insets sectionInset = TBaseSection::getInsets(layout);
-        Rect frameOfColumn(sectionInset.left, sectionInset.top, 0, 0);
-        
-        TBaseSection::m_items.reserve(numberOfItems);
 
-        TCoordinate minimumLineSpacing = TBaseSection::getMinimumLineSpacing(layout);
-        TCoordinate minimumInteritemSpacing = TBaseSection::getMinimumInteritemSpacing(layout);
-        
+        TBaseSection::prepareItems(numberOfItems);
+
+        TInt minInvalidatedItem = TBaseSection::getMinimalInvalidatedItem();
+        bool isFullSpan = false;
+        TInt itemIndex = minInvalidatedItem;
+        for (FlexItemIterator it = TBaseSection::m_items.begin() + minInvalidatedItem; it != TBaseSection::m_items.end(); ++it, ++itemIndex)
+        {
+            // isFullSpan = false;
+            (*it)->setItem(itemIndex);
+            (*it)->getFrame().size = TBaseSection::getSizeForItem(layout, itemIndex, &isFullSpan);
+            (*it)->setFullSpan(isFullSpan);
+        }
+
         // Get Number of Columns
         TInt numberOfColumns = TBaseSection::getNumberOfColumns(layout);
         if (numberOfColumns < 1)
         {
             numberOfColumns = 1;
         }
+        Insets sectionInset = TBaseSection::getInsets(layout);
         
-        m_columns.reserve(numberOfColumns);
-        TInt estimatedNumberOfItems = (TInt)ceil(numberOfItems / numberOfColumns);
-        TCoordinate sizeOfColumn = 0.0;
-        
-        TCoordinate availableSizeOfColumn = width(size) - hinsets(sectionInset);
-
-        for (TInt columnIndex = 0; columnIndex < numberOfColumns; columnIndex++)
+        if (numberOfColumns != m_columns.size() || minInvalidatedItem == 0 || TBaseSection::isSectionInvalidated())
         {
-            if (columnIndex == numberOfColumns - 1)
-            {
-                sizeOfColumn = availableSizeOfColumn;
-                // availableSizeOfColumn = 0.0;
-            }
-            else
-            {
-                sizeOfColumn = round((availableSizeOfColumn - (numberOfColumns - columnIndex - 1) * minimumInteritemSpacing) / (numberOfColumns - columnIndex));
-                availableSizeOfColumn -= sizeOfColumn + minimumInteritemSpacing;
-            }
+            // If NumberOfColumns changes, we need relayout all items
+            minInvalidatedItem = 0;
+
+            clearColumns();
+
+            m_columns.reserve(numberOfColumns);
+            TInt estimatedNumberOfItems = (TInt)ceil(numberOfItems / numberOfColumns);
             
-            width(frameOfColumn, sizeOfColumn);
-
-            FlexColumn *column = new FlexColumn(estimatedNumberOfItems, frameOfColumn);
-            m_columns.push_back(column);
-
-            Rect rect = m_columns[m_columns.size() - 1]->getFrame();
-
+            Rect frameOfColumn(sectionInset.left, sectionInset.top, 0, 0);
             
-            offsetX(frameOfColumn, sizeOfColumn + minimumInteritemSpacing);
+            TCoordinate minimumInteritemSpacing = TBaseSection::getMinimumInteritemSpacing(layout);
+            
+            TCoordinate sizeOfColumn = 0.0;
+            TCoordinate availableSizeOfColumn = width(size) - hinsets(sectionInset);
+            
+            for (TInt columnIndex = 0; columnIndex < numberOfColumns; columnIndex++)
+            {
+                if (columnIndex == numberOfColumns - 1)
+                {
+                    sizeOfColumn = availableSizeOfColumn;
+                    // availableSizeOfColumn = 0.0;
+                }
+                else
+                {
+                    sizeOfColumn = round((availableSizeOfColumn - (numberOfColumns - columnIndex - 1) * minimumInteritemSpacing) / (numberOfColumns - columnIndex));
+                    availableSizeOfColumn -= sizeOfColumn + minimumInteritemSpacing;
+                }
+                
+                width(frameOfColumn, sizeOfColumn);
+                
+                FlexColumn *column = new FlexColumn(estimatedNumberOfItems, frameOfColumn);
+                m_columns.push_back(column);
+
+                offsetX(frameOfColumn, sizeOfColumn + minimumInteritemSpacing);
+            }
+        }
+        else
+        {
+            // Remove all layout-invalidated items from columns
+            removeItemsInColumns(minInvalidatedItem);
         }
         
+        TCoordinate minimumLineSpacing = TBaseSection::getMinimumLineSpacing(layout);
+        
         // Layout each item
-        typename std::vector<FlexColumn *>::iterator itOfTargetColumn = m_columns.begin();
-
-        ColumnSizeCompare compare;
-
         Rect frameOfItem;
-        bool isFullSpan = false;
-        for (TInt itemIndex = 0; itemIndex < numberOfItems; itemIndex++)
+        ColumnSizeCompare compare;
+        FlexColumnIterator itOfTargetColumn = m_columns.begin();
+        
+        for (FlexItemIterator it = TBaseSection::m_items.begin() + minInvalidatedItem; it != TBaseSection::m_items.end(); ++it)
         {
-            isFullSpan = false;
-            frameOfItem.size = TBaseSection::getSizeForItem(layout, itemIndex, &isFullSpan);
-            
             // Find the column with lowest hight
-            itOfTargetColumn = isFullSpan ? max_element(m_columns.begin(), m_columns.end(), compare) : min_element(m_columns.begin(), m_columns.end(), compare);
-
+            itOfTargetColumn = (*it)->isFullSpan() ? max_element(m_columns.begin(), m_columns.end(), compare) : min_element(m_columns.begin(), m_columns.end(), compare);
+            
             // Add spacing for the item which is not first one
             frameOfItem.origin = leftBottom((*itOfTargetColumn)->getFrame());
             offsetY(frameOfItem, (*itOfTargetColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing);
-
-            FlexItem *item = new FlexItem(itemIndex, frameOfItem);
-
-            if (isFullSpan)
+            
+            (*it)->getFrame().origin = frameOfItem.origin;
+            
+            if ((*it)->isFullSpan())
             {
-                item->setFullSpan(true);
-                
                 // Add into the column
-                for (typename std::vector<FlexColumn *>::iterator itColumn = m_columns.begin(); itColumn != m_columns.end(); ++itColumn)
+                for (FlexColumnIterator itColumn = m_columns.begin(); itColumn != m_columns.end(); ++itColumn)
                 {
                     if (itOfTargetColumn != itColumn)
                     {
-                        FlexItem *placeHolder = new FlexItem(*item);
+                        FlexItem *placeHolder = new FlexItem(*(*it));
                         placeHolder->setPlaceHolder(true);
                         m_placeHolderItems.push_back(placeHolder);
                         top(placeHolder->getFrame(), bottom((*itColumn)->getFrame()) + ((*itColumn)->isEmpty() ? (TCoordinate)0 : minimumLineSpacing));
@@ -182,35 +248,16 @@ protected:
                     }
                 }
             }
-
-            (*itOfTargetColumn)->addItem(item);
-
-            TBaseSection::m_items.push_back(item);
+            
+            (*itOfTargetColumn)->addItem(*it);
         }
-        
+
         // Find the column with highest height
         FlexColumnConstIterator columnItOfMaximalSize = max_element(m_columns.begin(), m_columns.end(), compare);
-        
+
         height(TBaseSection::m_itemsFrame, bottom((*columnItOfMaximalSize)->getFrame()) + bottom(sectionInset));
         height(TBaseSection::m_frame, bottom(TBaseSection::m_itemsFrame));
     }
-
-#ifndef NDEBUG
-    std::string printDebugInfo() const
-    {
-        std::ostringstream str;
-        int idx = 1;
-        for (typename std::vector<FlexColumn *>::const_iterator it = m_columns.begin(); it != m_columns.end(); ++it)
-        {
-            str << "Column:" << idx << "\r\n";
-            str << (*it)->printDebugInfo("    ");
-
-            idx++;
-        }
-
-        return str.str();
-    }
-#endif // #ifndef NDEBUG
 
     bool filterItemsInRect(const Rect &rectInSection, std::vector<const FlexItem *> &items) const
     {

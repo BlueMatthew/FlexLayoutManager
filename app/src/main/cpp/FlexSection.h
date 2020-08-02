@@ -47,30 +47,19 @@ namespace nsflex
         using IntType = TInt;
         using CoordinateType = TCoordinate;
         using FlexItem = FlexItemT<TInt, TCoordinate>;
+        using FlexItemIterator = typename std::vector<FlexItem *>::iterator;
 
         using Point = PointT<TCoordinate>;
         using Size = SizeT<TCoordinate>;
         using Rect = RectT<TCoordinate>;
         using Insets = InsetsT<TCoordinate>;
 
-        // using TBase::x;
         using TBase::y;
-        // using TBase::left;
         using TBase::top;
-        // using TBase::right;
         using TBase::bottom;
-
-        // using TBase::offset;
-        // using TBase::offsetX;
-        // using TBase::offsetY;
-        // using TBase::incWidth;
-
         using TBase::leftBottom;
         using TBase::height;
         using TBase::width;
-
-        // using TBase::hinsets;
-        // using TBase::vinsets;
 
     protected:
         TInt m_section;
@@ -81,16 +70,18 @@ namespace nsflex
         // FlexSectionT implements all required methods and sub-class doesn't need to access this member variable directly
         // So set it private
 
-
     protected:
-        struct {
-            TInt sectionInvalidated : 1;    // The whole section is invalidated
-            TInt headerInvalidated : 1;
-            TInt itemsInvalidated : 1; // Some of items are invalidated
-            TInt footerInvalidated : 1;
-            TInt reserved : 4;
-            TInt minimalInvalidatedItem : sizeof(TInt) * 8 - 8;   // If minimal invalidated item is greater than 2^24, just set sectionInvalidated to 1
-        } m_invalidationContext;
+        union {
+            struct {
+                // If minimal invalidated item is greater than 2^24, just set m_sectionInvalidated to 1
+                unsigned int m_sectionInvalidated : 1;    // The whole section is invalidated
+                unsigned int m_headerInvalidated : 1;
+                unsigned int m_itemsInvalidated : 1; // Some of items are invalidated
+                unsigned int m_footerInvalidated : 1;
+            };
+            unsigned int m_invalidationContext;
+        };
+        TInt m_minimalInvalidatedItem;
 
 #ifdef HAVING_HEADER_AND_FOOTER
         FlexItem m_header;
@@ -101,7 +92,7 @@ namespace nsflex
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
 
     public:
-        FlexSectionT(TInt section, const Rect& frame) : ContainerBaseT<TCoordinate, VERTICAL>(), m_section(section), m_frame(frame)
+        FlexSectionT(TInt section, const Rect& frame) : ContainerBaseT<TCoordinate, VERTICAL>(), m_section(section), m_frame(frame), m_invalidationContext(0), m_minimalInvalidatedItem(std::numeric_limits<TInt>::max())
         {
 #ifdef HAVING_HEADER_AND_FOOTER
             m_header.setHeader(true);
@@ -109,6 +100,7 @@ namespace nsflex
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
             
             width(m_itemsFrame, width(m_frame));
+            invalidateSection();
         }
 
         virtual ~FlexSectionT()
@@ -133,6 +125,31 @@ namespace nsflex
         inline Rect &getFrame() { return m_frame; }
         inline TInt getItemCount() const { return m_items.size(); }
 
+        virtual void reloadSection()
+        {
+            invalidateSection();
+        }
+        
+        virtual void insertItem(TInt itemIndex)
+        {
+            FlexItem *item = new FlexItem(itemIndex);
+            m_items.insert(m_items.begin() + itemIndex, item);
+            invalidateItem(itemIndex);
+        }
+        
+        virtual void reloadItem(TInt itemIndex)
+        {
+            invalidateItem(itemIndex);
+        }
+        
+        virtual void deleteItem(TInt itemIndex)
+        {
+            typename std::vector<FlexItem *>::iterator it = m_items.begin() + itemIndex;
+            delete (*it);
+            m_items.erase(it);
+            invalidateItem(itemIndex);
+        }
+        
         inline Rect getItemFrameInView(TInt item) const
         {
 #ifdef DEBUG
@@ -175,7 +192,7 @@ namespace nsflex
             return getFrameInView(m_itemsFrame);
         }
 
-        inline const Rect getItemsFrameInViewAfterItem(int itemIndex) const
+        inline const Rect getItemsFrameInViewAfterItem(TInt itemIndex) const
         {
             FlexItem *item = m_items[itemIndex];
             FlexItem *itemLast = m_items.back();
@@ -185,42 +202,21 @@ namespace nsflex
             return rect;
         }
         
-#ifdef HAVING_HEADER_AND_FOOTER
-        void prepareHeaderAndFooterLayout(const TLayout *layout, const Size &size)
-        {
-            prepareLayoutImpl(layout, size, true);
-        }
-        
-#endif // #ifdef HAVING_HEADER_AND_FOOTER
-        
         void prepareLayout(const TLayout *layout, const Size &size)
         {
-#ifdef HAVING_HEADER_AND_FOOTER
-            prepareLayoutImpl(layout, size, false);
-#else
-            prepareLayoutImpl(layout, size);
-#endif // #ifdef HAVING_HEADER_AND_FOOTER
-        }
-
-    protected:
-        inline void prepareLayoutImpl(const TLayout *layout, const Size &size
-#ifdef HAVING_HEADER_AND_FOOTER
-                               , bool onlyHeaderAndFooter
-#endif // #ifdef HAVING_HEADER_AND_FOOTER
-                               )
-        {
-            // Clear the frame height and calculate it by layout
+            if (!existsInvalidatedPart())
+            {
+                return;
+            }
+            
+// Clear the frame height and calculate it by layout
             height(m_frame, 0);
 #ifdef HAVING_HEADER_AND_FOOTER
             
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
             
 #ifdef HAVING_HEADER_AND_FOOTER
-            if (!onlyHeaderAndFooter)
-            {
-                height(m_itemsFrame, height(m_frame));
-            }
-            
+            height(m_itemsFrame, height(m_frame));
             // Header
             m_header.getFrame().size = getSizeForHeader(layout);
 
@@ -229,16 +225,7 @@ namespace nsflex
             top(m_itemsFrame, bottom(m_header.getFrame()));
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
 
-#ifdef HAVING_HEADER_AND_FOOTER
-            if (!onlyHeaderAndFooter)
-            {
-#endif // #ifdef HAVING_HEADER_AND_FOOTER
-                prepareItemsLayout(layout, size);
-#ifdef HAVING_HEADER_AND_FOOTER
-            }
-#endif // #ifdef HAVING_HEADER_AND_FOOTER
-
-            // height(m_itemsFrame, y(pt) - height(m_frame));
+            prepareItemsLayout(layout, size);
             height(m_frame, bottom(m_itemsFrame));
 
 #ifdef HAVING_HEADER_AND_FOOTER
@@ -248,8 +235,10 @@ namespace nsflex
 
             height(m_frame, bottom(m_footer.getFrame()));
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
+            
+            resetInvalidationContext();
         }
-
+        
     public:
         bool filterInRect(std::vector<const FlexItem *> &items, const Rect &rect) const
         {
@@ -291,50 +280,49 @@ namespace nsflex
             return matched;
         }
 
+    protected:
         void resetInvalidationContext()
         {
-            unsigned int value = ~0;
-            *((unsigned int *)&m_invalidationContext) = (value >> 8);
+            m_invalidationContext = 0;
+            m_minimalInvalidatedItem = std::numeric_limits<TInt>::max();
         }
 
-        bool isSectionInvalidated() const { return m_invalidationContext.sectionInvalidated == 1; }
+        bool isSectionInvalidated() const { return m_sectionInvalidated == 1; }
 #ifdef HAVING_HEADER_AND_FOOTER
-        bool isHeaderInvalidated() const { return m_invalidationContext.headerInvalidated == 1; }
-        bool isFooterInvalidated() const { return m_invalidationContext.footerInvalidated == 1; }
+        bool isHeaderInvalidated() const { return m_headerInvalidated == 1; }
+        bool isFooterInvalidated() const { return m_footerInvalidated == 1; }
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
-        bool hasInvalidatedItem() const { return m_invalidationContext.itemsInvalidated == 1; }
+        bool hasInvalidatedItems() const { return m_itemsInvalidated == 1; }
+        
+        bool existsInvalidatedPart() const
+        {
+            return m_invalidationContext != 0;
+        }
 
-        unsigned int getMinimalInvalidatedItem() const { return m_invalidationContext.minimalInvalidatedItem; }
+        TInt getMinimalInvalidatedItem() const { return m_sectionInvalidated ? 0 : std::min(m_minimalInvalidatedItem, (TInt)m_items.size()); }
         inline void invalidateSection()
         {
-            m_invalidationContext.sectionInvalidated = 1;
+            m_sectionInvalidated = 1;
         }
 
 #ifdef HAVING_HEADER_AND_FOOTER
         inline void invalidateHeader()
         {
-            m_invalidationContext.headerInvalidated = 1;
+            m_headerInvalidated = 1;
         }
 
         void invalidateFooter()
         {
-            m_invalidationContext.footerInvalidated = 1;
+            m_footerInvalidated = 1;
         }
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
 
         void invalidateItem(TInt item)
         {
-            m_invalidationContext.sectionInvalidated = 1;
-            unsigned int maximum = ~0;
-            maximum = (maximum >> 8);
-            if (item > (TInt)maximum)
+            m_itemsInvalidated = 1;
+            if (item < m_minimalInvalidatedItem)
             {
-                m_invalidationContext.sectionInvalidated = 1;
-                m_invalidationContext.minimalInvalidatedItem = maximum;
-            }
-            else
-            {
-                m_invalidationContext.minimalInvalidatedItem = (unsigned int)item;
+                m_minimalInvalidatedItem = item;
             }
         }
 
@@ -348,6 +336,29 @@ namespace nsflex
             Rect rectInView(rect);
             rectInView.offset(m_frame.left(), m_frame.top());
             return rectInView;
+        }
+        
+        inline void prepareItems(TInt numberOfItems)
+        {
+            TInt orgNumberOfItems = m_items.size();
+            if (numberOfItems > orgNumberOfItems)
+            {
+                m_items.reserve(numberOfItems);
+                for (TInt itemIndex = orgNumberOfItems; itemIndex < numberOfItems; ++itemIndex)
+                {
+                    m_items.push_back(new FlexItem(itemIndex));
+                }
+            }
+            else if (numberOfItems < orgNumberOfItems)
+            {
+                FlexItemIterator itStart = m_items.begin() + numberOfItems;
+                FlexItemIterator it = itStart;
+                for (; it < m_items.end(); ++it)
+                {
+                    delete (*it);
+                }
+                m_items.erase(itStart, m_items.end());
+            }
         }
 
         // Layout Adapter Functions Begin
