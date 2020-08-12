@@ -105,10 +105,11 @@ public class FlexLayoutHelper {
         int item = 0;
         int position = 0;
         Rect rect = new Rect();
-        int stickyData = 0;
+        int inSticky = 0;
+        int originChanged = 0;
 
         for (int index = 0; index < numberOfItems; index++) {
-            if (data.length - offset < 8) {
+            if (data.length - offset < 9) {
                 break;
             }
             section = data[offset++];
@@ -119,9 +120,10 @@ public class FlexLayoutHelper {
             rect.top = data[offset++];
             rect.right = rect.left + data[offset++];
             rect.bottom = rect.top + data[offset++];
-            stickyData = data[offset++];
+            inSticky = data[offset++];
+            originChanged = data[offset++];
 
-            layoutItem = new LayoutItem(section, item, position, stickyData, rect);
+            layoutItem = new LayoutItem(section, item, position, inSticky, originChanged, rect);
 
             visibleItems.add(layoutItem);
         }
@@ -136,21 +138,22 @@ public class FlexLayoutHelper {
 
         rect.set(0, 0, 0, 0);
         for (int index = 0; index < numberOfChangingStickyItems; index++) {
-            if (data.length - offset < 6) {
+            if (data.length - offset < 7) {
                 break;
             }
 
             section = data[offset++];
             item = data[offset++];
             position = data[offset++];
-            stickyData = data[offset++];
+            inSticky = data[offset++];
+            originChanged = data[offset++];
             rect.left = data[offset++];
             rect.top = data[offset++];
 
             rect.right = rect.left;
             rect.bottom = rect.top;
 
-            layoutItem = new LayoutItem(section, item, position, stickyData, rect);
+            layoutItem = new LayoutItem(section, item, position, inSticky, originChanged, rect);
             changingStickyItems.add(layoutItem);
         }
 

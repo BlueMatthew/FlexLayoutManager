@@ -213,6 +213,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         } else {
             mLayout.setStackedStickyItems(stackedStickyItems);
         }
+        requestLayout();
     }
 
     public void setMinimumPagableSection(int minimumPagableSection) {
@@ -845,8 +846,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     }
 
     protected void setContentSize(int width, int height) {
-        mContentSizeWidth = width;
-        mContentSizeHeight = height;
+        mContentSizeWidth = width + getPaddingLeft() + getPaddingRight();
+        mContentSizeHeight = height + getPaddingTop() + getPaddingBottom();
     }
 
     protected PointF computeScrollVectorForPosition(int position) {

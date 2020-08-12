@@ -74,7 +74,7 @@ public class MainActivityDataSource {
     public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
-            {2000, 2},
+            {20, 2},
             {90, 0},
             {20, 0},
             {120, 0},
@@ -725,7 +725,7 @@ public class MainActivityDataSource {
             int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
 
 
-            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * lineSpacing) / columns);
+            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * interitemSpacing) / columns);
 
             return width;
         }

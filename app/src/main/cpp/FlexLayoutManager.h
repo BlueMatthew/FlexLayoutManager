@@ -2,23 +2,33 @@
 // Created by Matthew Shi on 2020-07-19.
 //
 
-#include "FlexLayout.h"
+#include "RecyclerLayout.h"
 
 #ifndef FLEXLAYOUTMANAGER_FLEXLAYOUTMANAGER_H
 #define FLEXLAYOUTMANAGER_FLEXLAYOUTMANAGER_H
 
-
 class FlexLayoutManager
 {
 public:
-    static int VERTICAL/* = 1*/;
+    static int VERTICAL;
+    static int INVALID_OFFSET;
     inline static bool isVertical(int orientation)
     {
         return VERTICAL == orientation;
     }
 
-    using VerticalLayout = FlexLayout<int, int, true>;
-    using HorizontalLayout = FlexLayout<int, int, false>;
+    using FlexItem = nsflex::FlexItemT<int, int>;
+    using StickySectionItem = RecyclerSectionItemT<int, (char)(FlexItem::ITEM_TYPE_ITEM)>;
+    using StickyItemState = StickyItemStateT<int>;
+
+    using StickyItem = StickyItemT<StickySectionItem, StickyItemState>;
+    using StickyItemList = std::vector<StickyItem>;
+    using StickyItemAndSectionItemCompare = StickyItemAndSectionItemCompareT<StickySectionItem, StickyItemState>;
+
+    template <bool VERTICAL>
+    using Section = SectionT<LayoutCallbackAdapter, int, int, VERTICAL>;
+    using VerticalLayout = RecyclerLayoutT<LayoutCallbackAdapter, Section<true>, true>;
+    using HorizontalLayout = RecyclerLayoutT<LayoutCallbackAdapter, Section<false>, false>;
 
 protected:
     int m_orientation;
@@ -29,7 +39,7 @@ protected:
     // We put sticky items info in the LayoutManager to avoid being destroyed.
     // Another better solution is to move sticky hendling out of Layout and put it into LayoutManager.
     // Can do it later
-    mutable std::vector<StickyItem> m_stickyItems;  // The state should be updated
+    mutable StickyItemList m_stickyItems; // Section Index -> Sticy Status(YES/NO)  // The state should be updated
     bool m_stackedStickyItems;
 
 public:
@@ -40,10 +50,11 @@ public:
 
     inline void addStickyItem(int section, int item)
     {
-        m_stickyItems.push_back(StickyItem(section, item));
-        if (m_stickyItems.size() > 1)
+        StickySectionItem sectionItem(section, item);
+        StickyItemList::iterator it = std::lower_bound(m_stickyItems.begin(), m_stickyItems.end(), sectionItem, StickyItemAndSectionItemCompare());
+        if (it == m_stickyItems.end() || it->first != sectionItem)
         {
-            std::sort(m_stickyItems.begin(), m_stickyItems.end());
+            m_stickyItems.insert(it, std::make_pair(sectionItem, StickyItemState()));
         }
     }
 
@@ -69,12 +80,8 @@ public:
 
     Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo);
     void updateItems(int action, int itemStart, int itemCount);
-
-    // LayoutItem::data == 1, indicates that the item is sticky
-    void getItemsInRect(std::vector<LayoutItem> &items, std::vector<std::pair<StickyItem, Point>> &changingStickyItems, const LayoutInfo &layoutInfo) const;
-
+    void getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const LayoutInfo &layoutInfo) const;
     int computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const;
-
     bool getItem(int position, LayoutItem &layoutItem) const;
 
 };

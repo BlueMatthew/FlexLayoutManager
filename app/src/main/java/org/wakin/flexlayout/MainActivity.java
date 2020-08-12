@@ -96,8 +96,9 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
                         handler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                // mRecyclerView.smoothScrollToPosition(100);
+                                mRecyclerView.smoothScrollToPosition(100);
                                 // mRecyclerView.scrollToPosition(100);
+
 
                                 // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();
                                 // layoutManager.scrollToPositionWithOffset(100, 60);
@@ -205,7 +206,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
             layoutManager.addStickyItem(sp.section, sp.item);
         }
 
-        // layoutManager.setStackedStickyItems(false);
+        layoutManager.setStackedStickyItems(false);
         // layoutManager.setLayoutCallback(this);
 
         mRecyclerView.setLayoutManager(layoutManager);

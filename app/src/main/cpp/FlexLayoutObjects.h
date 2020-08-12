@@ -2,164 +2,28 @@
 // Created by Matthew Shi on 2020-07-14.
 //
 
+#include "common/Graphics.h"
+#include "common/FlexItem.h"
+#include "common/FlexRow.h"
+#include "common/FlexColumn.h"
+#include "common/FlexLayout.h"
+#include "RecyclerLayout.h"
+
+
 #ifndef FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H
 #define FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H
 
+using Point = nsflex::PointT<int>;
+using Size = nsflex::SizeT<int>;
+using Rect = nsflex::RectT<int>;
+using Insets = nsflex::InsetsT<int>;
 
-#include "Graphics.h"
+using FlexItem = nsflex::FlexItemT<int, int>;
+using LayoutItem = RecyclerLayoutItemT<int, int>;
 
-#include "Graphics.h"
-#include "FlexItem.h"
-#include "FlexRow.h"
-#include "FlexColumn.h"
-
-
-typedef nsflex::PointT<int> Point;
-typedef nsflex::SizeT<int> Size;
-typedef nsflex::RectT<int> Rect;
-typedef nsflex::InsetsT<int> Insets;
-
-typedef nsflex::FlexItemT<int, int> FlexItem;
-
-
-struct LayoutItem
-{
-    int section;
-    int item;
-    int position;
-    Rect frame;
-    int data;
-    // Point origin;
-
-    LayoutItem() : section(0), item(0), position(0), data(0) {}
-    LayoutItem(int s, int i) : section(s), item(i), position(0), data(0) {}
-    LayoutItem(int s, int i, int pos, const Rect &f) : section(s), item(i), position(pos), frame(f), data(0) {}
-    LayoutItem(const LayoutItem &src) : section(src.section), item(src.item), position(src.position), frame(src.frame), data(src.data) {}
-    LayoutItem(const LayoutItem *src) : LayoutItem(*src) {}
-
-
-    bool operator==(const LayoutItem &other) const
-    {
-        if (this == &other) return true;
-        return section == other.section && item == other.item;
-    }
-
-    bool operator==(const LayoutItem *other) const
-    {
-        return *this == *other;
-    }
-
-    bool operator!=(const LayoutItem &other) const
-    {
-        return !(*this == other);
-    }
-
-    bool operator!=(const LayoutItem *other) const
-    {
-        return !(*this == *other);
-    }
-
-    void reset(int section, int item, int position, const Rect &frame, int data)
-    {
-        this->section = section;
-        this->item = item;
-        this->position = position;
-        this->frame = frame;
-        this->data = data;
-        // this->origin = frame.origin;
-    }
-
-    void set(int position, const Rect &frame)
-    {
-        this->position = position;
-        this->frame = frame;
-        // this->origin = frame.origin;
-    }
-
-    void set(const LayoutItem &other)
-    {
-        position = other.position;
-        frame = other.frame;
-        // origin = other.origin;
-        data = other.data;
-    }
-
-    void clearStickyFlag()
-    {
-        data &= ~1;
-    }
-
-    void setInSticky(bool inSticky)
-    {
-        inSticky ? (data |= 1) : (data &= (~1));
-    }
-
-    void setOriginChanged(bool changed)
-    {
-        changed ? (data |= 2) : (data &= (~2));
-    }
-
-    bool isInSticky() const
-    {
-        return (data & 1) == 1;
-    }
-
-    bool isOriginChanged() const
-    {
-        return (data & 2) == 2;
-    }
-};
-
-struct LayoutItemCompare
-{
-    bool operator() ( const LayoutItem* lhs, const LayoutItem* rhs) const
-    {
-        return lhs->section < rhs->section || (lhs->section == rhs->section && lhs->item < rhs->item);
-    }
-};
-
-
-struct StickyItem
-{
-    int section;
-    int item;
-    int position;
-    bool inSticky;
-
-    StickyItem(int s, int i) : section(s), item(i), position(0), inSticky(false)
-    {
-    }
-
-    StickyItem(const StickyItem& src) : section(src.section), item(src.item), position(src.position), inSticky(src.inSticky)
-    {
-    }
-
-    bool operator==(const StickyItem &other)
-    {
-        if (this == &other) return true;
-        return section == other.section && item == other.item;
-    }
-
-    bool operator!=(const StickyItem &other)
-    {
-        return !(*this == other);
-    }
-
-    bool operator<(const StickyItem &other) const
-    {
-        return (section < other.section) || ((section == other.section) && item == other.item);
-    }
-
-};
-
-struct LayoutStickyItemCompare
-{
-    bool operator() ( const LayoutItem &lhs, const StickyItem &rhs) const
-    {
-        return lhs.section < rhs.section || (lhs.section == rhs.section && lhs.item < rhs.item);
-    }
-};
-
+using StickySectionItem = RecyclerSectionItemT<int, (char)(FlexItem::ITEM_TYPE_ITEM)>;
+using StickyItemState = StickyItemStateT<int>;
+using StickyItem = StickyItemT<StickySectionItem, StickyItemState>;
 
 struct SectionInfo
 {
@@ -216,6 +80,7 @@ struct LayoutInfo {
     int orientation;
     Size size;
     Insets padding;
+    Size contentSize;
     Point contentOffset;
 
     LayoutInfo() : orientation(1)
@@ -323,22 +188,26 @@ inline void writeToBuffer(std::vector<int> &buffer, const Rect &rect)
 template<>
 inline void writeToBuffer(std::vector<int> &buffer, const LayoutItem &layoutItem)
 {
-    buffer.push_back(layoutItem.section);
-    buffer.push_back(layoutItem.item);
-    buffer.push_back(layoutItem.position);
-    writeToBuffer(buffer, layoutItem.frame);
-    buffer.push_back(layoutItem.data);
+    buffer.push_back(layoutItem.getSection());
+    buffer.push_back(layoutItem.getItem());
+    buffer.push_back(layoutItem.getPosition());
+    writeToBuffer(buffer, layoutItem.getFrame());
+
+    buffer.push_back(layoutItem.isInSticky() ? 1 : 0);
+    buffer.push_back(layoutItem.isOriginChanged() ? 1 : 0);
 }
 
 template<>
-inline void writeToBuffer(std::vector<int> &buffer, const std::pair<StickyItem, Point> &stickyItem)
+inline void writeToBuffer(std::vector<int> &buffer, const StickyItem &stickyItem)
 {
-    buffer.push_back(stickyItem.first.section);
-    buffer.push_back(stickyItem.first.item);
-    buffer.push_back(stickyItem.first.position);
-    buffer.push_back(stickyItem.first.inSticky ? 1 : 0);
-    buffer.push_back(stickyItem.second.x);
-    buffer.push_back(stickyItem.second.y);
+    buffer.push_back(stickyItem.first.getSection());
+    buffer.push_back(stickyItem.first.getItem());
+    buffer.push_back(stickyItem.first.getPosition());
+    buffer.push_back(stickyItem.second.isInSticky() ? 1 : 0);
+    buffer.push_back(stickyItem.second.isOriginChanged() ? 1 : 0);
+    buffer.push_back(stickyItem.second.getFrame().origin.x);
+    buffer.push_back(stickyItem.second.getFrame().origin.y);
+
 }
 
 

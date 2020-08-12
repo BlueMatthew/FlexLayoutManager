@@ -12,7 +12,8 @@ public class LayoutItem implements Comparable<LayoutItem> {
     private int mItem;
     private int mPosition = 0;
     private Rect mFrame;
-    private int mData;
+    private boolean mInSticky = false;
+    private boolean mOriginChanged = false;
     // private Point mOroginalPoint = null;
 
     public LayoutItem() {
@@ -23,29 +24,32 @@ public class LayoutItem implements Comparable<LayoutItem> {
         mSection = section;
         mItem = item;
         mPosition = position;
-        mData = 0;
+        mInSticky = false;
+        mOriginChanged = false;
         mFrame = new Rect();
     }
 
     public LayoutItem(FlexItem item) {
         mSection = item.getSection();
         mItem = item.getItem();
-        mData = 0;
+        mInSticky = false;
+        mOriginChanged = false;
         mPosition = item.getAdapterPosition();
         mFrame = new Rect();
         item.getFrameOnView(mFrame);
     }
 
-    public LayoutItem(int section, int item, int position, int data, int left, int top, int right, int bottom) {
+    public LayoutItem(int section, int item, int position, int inSticky, int originChanged, int left, int top, int right, int bottom) {
         mSection = section;
         mItem = item;
         mPosition = position;
-        mData = data;
+        mInSticky = (inSticky != 0);
+        mOriginChanged = (originChanged != 0);
         mFrame = new Rect(left, top, right, bottom);
     }
 
-    public LayoutItem(int section, int item, int position, int data, Rect frame) {
-        this(section, item, position, data, frame.left, frame.top, frame.right, frame.bottom);
+    public LayoutItem(int section, int item, int position, int inSticky, int originChanged, Rect frame) {
+        this(section, item, position, inSticky, originChanged, frame.left, frame.top, frame.right, frame.bottom);
     }
 
     public int getSection() {
@@ -56,12 +60,11 @@ public class LayoutItem implements Comparable<LayoutItem> {
         return mItem;
     }
 
-
     public boolean isInSticky() {
-        return (mData & 1) == 1;
+        return mInSticky;
     }
     public boolean isOriginChanged() {
-        return (mData & 2) == 2;
+        return mOriginChanged;
     }
 
     public Rect getFrame() {
@@ -81,10 +84,10 @@ public class LayoutItem implements Comparable<LayoutItem> {
     }
 
     public void setOriginChanged() {
-        mData |= 2;
+        mOriginChanged = true;
     }
     public void setInSticky() {
-        mData |= 1;
+        mInSticky = true;
     }
 
     @Override
