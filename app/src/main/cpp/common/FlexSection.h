@@ -188,16 +188,6 @@ namespace nsflex
             return getFrameInView(m_itemsFrame);
         }
 
-        inline const Rect getItemsFrameInViewAfterItem(TInt itemIndex) const
-        {
-            FlexItem *item = m_items[itemIndex];
-            FlexItem *itemLast = m_items.back();
-
-            Rect rect(item->getFrame().left() + m_itemsFrame.left(), item->getFrame().bottom() + m_itemsFrame.top(), (*itemLast).getFrame().width(), (*itemLast).getFrame().bottom() - item->getFrame().bottom());
-            return getFrameInView(rect);
-            return rect;
-        }
-
         void prepareLayout(const TLayout *layout, const Size &size)
         {
             if (!existsInvalidatedPart())

@@ -516,7 +516,7 @@ public:
     {
     }
 
-    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
+    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
     {
         origin = rect.origin;
 
@@ -574,7 +574,7 @@ public:
 
             TCoordinate stickyItemSize = height(rect);
 
-            adjustFrameForStickyItem(rect, origin, it->first.getSection(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
+            adjustFrameForStickyItem(rect, origin, it->first.getSection(), it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
             /*
             if (stackedStickyItems)
             {

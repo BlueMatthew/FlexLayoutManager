@@ -71,7 +71,7 @@ public class MainActivityDataSource {
     public int VIEW_TYPE_WEBVIEW = 7;
     public int VIEW_TYPE_PADDINGBOTTOM = 99;
     // Navbar Product Entry Cat
-    public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
+    public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {4, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
             {20, 2},
@@ -490,10 +490,19 @@ public class MainActivityDataSource {
         setCellWidth(cellData, section.calcCellWidth());
         setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
 
+        int colorIdx = 0;
+        for (int idx = 1; idx < section.itemCount; idx++, colorIdx++) {
+            cellData = section.addCellData();
+            cellData.viewType = VIEW_TYPE_ENTRY;
+            cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
+            cellData.text = "Entry " + idx + " pos=" + (section.position + idx);
+            setCellWidth(cellData, section.calcCellWidth());
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+        }
 
         // Entry
         section = mPages[0].sections[SECTION_INDEX_ENTRY];
-        int colorIdx = 0;
+        colorIdx = 0;
         for (int idx = 0; idx < section.itemCount; idx++, colorIdx++) {
             cellData = section.addCellData();
             cellData.viewType = VIEW_TYPE_ENTRY;

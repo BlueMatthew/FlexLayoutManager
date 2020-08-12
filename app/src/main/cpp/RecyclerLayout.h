@@ -83,6 +83,7 @@ public:
     }
 
 
+
 };
 
 template<class TInt, class TCoordinate>
@@ -212,7 +213,7 @@ public:
         }
     }
 
-    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
+    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
     {
         Section *section = TBase::m_sections[sectionIndex];
         // offset(rect, left(section->getFrame()) - x(contentOffset), top(section->getFrame()) - y(contentOffset));
@@ -228,8 +229,9 @@ public:
             Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
             Rect frameItems = makeRect(x(origin), y(origin), right(lastItemInSection), bottom(lastItemInSection));
             frameItems.offset(section->getFrame().left(), section->getFrame().top());
-            top(rect, std::min(std::max(top(padding), (top(frameItems) - height(rect))),
-                               (bottom(frameItems) - height(rect))));
+            frameItems = section->getItemsFrameInViewAfterItem(itemIndex);
+            top(rect, std::min(std::max(0, (top(frameItems) - y(contentOffset) - height(rect))),
+                               (bottom(frameItems) - y(contentOffset) - height(rect))));
 
             /*
             Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
@@ -306,7 +308,7 @@ public:
             rect = section->getItemFrameInView(it->first.getItem());
             TCoordinate stickyItemSize = height(rect);
 
-            adjustFrameForStickyItem(rect, origin, it->first.getSection(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
+            adjustFrameForStickyItem(rect, origin, it->first.getSection(),  it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
 
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
