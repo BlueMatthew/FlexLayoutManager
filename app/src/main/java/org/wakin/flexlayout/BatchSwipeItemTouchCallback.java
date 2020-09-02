@@ -1,7 +1,5 @@
 package org.wakin.flexlayout;
 
-import android.os.Build;
-
 import android.util.Log;
 import android.view.View;
 
@@ -17,7 +15,7 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
 
         boolean isItemPagable(int pos);
         int getCurrentPage();
-        int getPageSize();
+        int getNumberOfPages();
 
         Object onPaginationStarted(int pos, int initialDirection);  // return BatchSwipeContext
         void onPaging(int pos, float offsetX, float offsetY, boolean scrollingOrAnimation, Object batchSwipeContext);
@@ -33,14 +31,8 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
     private float mPrevDx;
     private float mPrevDy;
 
-    private List<ViewHolder> mBundledViewHolders;
-
     public BatchSwipeItemTouchCallback(RecyclerViewAdapter adapter){
         mAdapter = adapter;
-    }
-
-    final List<ViewHolder> getBundledViewHolders() {
-        return mBundledViewHolders;
     }
 
     protected void updateBundledViews(RecyclerView recyclerView, ViewHolder viewHolder, float dX, float dY, boolean setOrClearElevation) {
@@ -109,7 +101,7 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
         // int dragFlags = ItemTouchHelper.UP | ItemTouchHelper.DOWN;
         int dragFlags = 0;
         int swipeFlags = 0;
-        int pageSize = mAdapter.getPageSize();
+        int pageSize = mAdapter.getNumberOfPages();
 
         if (pageSize > 1 && mAdapter.isItemPagable(viewHolder.getAdapterPosition()))
         {
@@ -173,14 +165,11 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
         // Log.i("ITH", String.format("clearView %s", ""));
 
         if (mPagable) {
-            updateBundledViews(recyclerView, viewHolder, 0f, 0f, false);
-            mBundledViewHolders = null;
+            // updateBundledViews(recyclerView, viewHolder, 0f, 0f, false);
             // If panition is finished successfully, there must be a direction which is not 0
             mAdapter.onSwipeFinished(viewHolder.getAdapterPosition(), mDirection == 0, mDirection, mBatchSwipeContext);
             mBatchSwipeContext = null;
         }
-
-        mBundledViewHolders = null;
     }
 
     @Override
@@ -192,12 +181,12 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
     public void onScroll(RecyclerView recyclerView, ViewHolder viewHolder, float dX, float dY, int actionState, boolean scrollingOrAnimation) {
         super.onScroll(recyclerView, viewHolder, dX, dY, actionState, scrollingOrAnimation);
 
-        // Log.i("ITH", String.format("onScroll dx=%f, actionState=%d, scrollingOrAnimation=%d", dX, actionState, (scrollingOrAnimation ? 1 : 0)));
+        Log.i("ITH", String.format("onScroll dx=%f, actionState=%d, scrollingOrAnimation=%d", dX, actionState, (scrollingOrAnimation ? 1 : 0)));
 
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             if (mPagable && !mSwiped) {
                 if (mPrevDx != dX || mPrevDy != dY) {
-                    updateBundledViews(recyclerView, viewHolder, dX, dY, true);
+                    // updateBundledViews(recyclerView, viewHolder, dX, dY, true);
                     mAdapter.onPaging(viewHolder.getAdapterPosition(), dX, dY, scrollingOrAnimation, mBatchSwipeContext);
 
                     mPrevDx = dX;

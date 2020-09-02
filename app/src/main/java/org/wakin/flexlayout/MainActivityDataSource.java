@@ -18,6 +18,9 @@ import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.SectionPosition;
 import org.wakin.flexlayout.LayoutManager.Graphics.Size;
 import org.wakin.flexlayout.cells.ItemView;
+import org.wakin.flexlayout.models.PageData;
+import org.wakin.flexlayout.models.PageFixedData;
+import org.wakin.flexlayout.models.SectionData;
 import org.wakin.flexlayout.models.CellData;
 
 import java.util.ArrayList;
@@ -32,11 +35,11 @@ public class MainActivityDataSource {
     public int ITEM_COLUMNS = 2;
     public boolean ITEM_LAYOUT_MODE_WATERFALL = true;
 
-    public static Insets RECYCLERVIEW_PADDING = Insets.of(20, 20, 20, 20);
+    // public static Insets RECYCLERVIEW_PADDING = Insets.of(20, 20, 20, 20);
+    public static Insets RECYCLERVIEW_PADDING = Insets.NONE;
 
-
-    public String ITEM_TEXT_ITEM =               "Page:%d Item:%d";
-    public String ITEM_TEXT_ITEM2 =              "Page:%d Item2:%d";
+    public String ITEM_TEXT_ITEM =               "Page:%d SI:%d-%d";
+    public String ITEM_TEXT_ITEM2 =              "Page:%d SI2:%d-%d";
     public String ITEM_URL_ITEM =                "http://api.wakin.org/images/items/%lu_%03lu.jpg";
     public String URL_FOR_TEST   =               "https://www.jianshu.com/p/4f9591291365";
 
@@ -71,18 +74,18 @@ public class MainActivityDataSource {
     public int VIEW_TYPE_WEBVIEW = 7;
     public int VIEW_TYPE_PADDINGBOTTOM = 99;
     // Navbar Product Entry Cat
-    public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {4, 1, 1, 1, 1};
+    public int[] NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART = {1, 1, 1, 1, 1};
     // Product Brand
     public int[][] NUM_OF_ITEMS_IN_SECTION_FOR_PAGES = {
             {20, 2},
-            {90, 0},
+            {9, 0},
             {20, 0},
-            {120, 0},
+            {12, 0},
             {2, 0},
-            {150, 0},
+            {15, 0},
             {1, 0},
-            {110, 0}};   // Navbar Product Entry Cat Product Brand
-    public int PAGE_INDEX_OF_WEBVIEW = 6;
+            {11, 0}};   // Navbar Product Entry Cat Product Brand
+    public int PAGE_INDEX_OF_WEBVIEW = 16;
 
     public int[] STICKY_SECTIONS = {0, 2};
 
@@ -90,17 +93,15 @@ public class MainActivityDataSource {
     public int[] ITEM_HEIGHT_ITEM2 = {120};
     public int ITEM_HEIGHT_FULL_SPAN = 60;
 
-    public PageData[] mPages;    // PageData
+    protected List<SectionData> mSections = new ArrayList<>();
+    public PageFixedData mFixedData = new PageFixedData();
+    public List<PageData> mPages = new ArrayList<>();    // PageData
     public int mBoundWidth = 0;
     public int mBoundHeight = 0;
 
-
     private int mPage;
-    // private String[] mUrls;
-    // private List< List<String> > mPageUrls;
 
     private Context mContext;
-
 
     public MainActivityDataSource(Context context, int boundWidth, int boundHeight) {
         mContext = context;
@@ -132,26 +133,45 @@ public class MainActivityDataSource {
         mPage = page;
     }
 
-    public int getPageSize() {
-        return mPages.length;
+    public int getNumberOfPages() {
+        return mPages.size();
+    }
+
+    public int getNumberOfFixedSections() { return mFixedData.getNumberOfSections(); }
+
+    public int getNumberOfSections(int page) {
+        return mPages.get(page).getNumberOfPageSections();
+    }
+
+    public int getNumberOfSections() {
+        return mSections.size();
     }
 
     public int getItemCount() {
-        return mPages[mPage].itemCount;
+        return getTotalItemCount();
+        // return mPages.get(mPage).getItemCount();
+    }
+
+    public int getTotalItemCount() {
+        int numberOfItems = 0;
+        if (null != mFixedData) {
+            numberOfItems += mFixedData.getItemCount();
+        }
+        for (int page = 0; page < mPages.size(); ++page) {
+            numberOfItems += mPages.get(page).getPageItemCount();
+        }
+        return numberOfItems;
     }
 
     public SectionPosition toSectionPosition(int position) {
-        PageData pageData = mPages[mPage];
         int section = 0;
         int item = position;
-        for (; section < pageData.sections.length; section++) {
-            int itemCount = pageData.sections[section].itemCount;
-
+        for (; section < mSections.size(); ++section) {
+            int itemCount = mSections.get(section).getItemCount();
             if (position >= itemCount) {
                 position -= itemCount;
                 continue;
             }
-
             break;
         }
 
@@ -172,16 +192,15 @@ public class MainActivityDataSource {
         return NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length;
     }
 
+    /*
     public SectionData getSection(int sectionIndex) {
         return mPages[mPage].sections[sectionIndex];
     }
+     */
 
     public void getItemSize(int section, int item, Size size) {
-
-        SectionData sectionData = mPages[mPage].sections[section];
-
-        CellData cellData = sectionData.items.get(item);
-
+        SectionData sectionData = mSections.get(section);
+        CellData cellData = sectionData.getItem(item);
         size.set(cellData.width, cellData.height);
     }
 
@@ -202,36 +221,36 @@ public class MainActivityDataSource {
     }
 
     public boolean isItemFullSpan(int section, int item) {
-        SectionData sectionData = mPages[mPage].sections[section];
-
-        CellData cellData = sectionData.items.get(item);
-
+        SectionData sectionData = mSections.get(section);
+        CellData cellData = sectionData.getItem(item);
         return cellData.fullSpan;
     }
 
-    public int getInfoForItemsBatchly(int section, int itemStart, int itemCount, int[] data) {
+    protected SectionData getSection(int section) {
+        return section >= 0 && section < mSections.size() ? mSections.get(section) : null;
+    }
 
+    public int getInfoForItemsBatchly(int section, int itemStart, int itemCount, int[] data) {
         if (null == data) {
             return 0;
         }
 
-        SectionData sectionData = mPages[mPage].sections[section];
+        SectionData sectionData = getSection(section);
         int length = data.length;
         int itemCountInBuffer = (int)Math.floor(length / 3);
         if (itemCountInBuffer < 1) {
             return 0;
         }
         itemCount = Math.min(itemCount, itemCountInBuffer);
-        itemCount = Math.min(itemCount, sectionData.itemCount - itemStart);
+        itemCount = Math.min(itemCount, sectionData.getItemCount() - itemStart);
 
         int offset = 0;
         for (int itemIndex = 0; itemIndex < itemCount; itemIndex++) {
-            CellData cellData = sectionData.items.get(itemStart + itemIndex);
+            CellData cellData = sectionData.getItem(itemStart + itemIndex);
 
             data[offset] = cellData.width;
             data[offset + 1] = cellData.height;
             data[offset + 2] = cellData.fullSpan ? 1 : 0;
-            // size.set(cellData.width, cellData.height);
             offset += 3;
         }
 
@@ -255,21 +274,17 @@ public class MainActivityDataSource {
     }
 
     int getSectionCount() {
-        return mPages[mPage].sections.length;
+        return mSections.size();
     }
 
     boolean isSectionWaterfallMode(int section) {
-        return mPages[mPage].sections[section].waterfallMode;
+        return mSections.get(section).isWaterfallMode();
     }
 
     CellData getCellData(int position) {
-        PageData pageData = mPages[mPage];
-
-        CellData cellData = null;
-
         int index = 0;
-        for (; index < pageData.sections.length; index++) {
-            int itemCount = pageData.sections[index].itemCount;
+        for (; index < mSections.size(); index++) {
+            int itemCount = mSections.get(index).getItemCount();
 
             if (position >= itemCount) {
                 position -= itemCount;
@@ -279,7 +294,7 @@ public class MainActivityDataSource {
             break;
         }
 
-        return pageData.sections[index].items.get(position);
+        return mSections.get(index).getItem(position);
     }
 
     public FlexRecyclerView.SectionViewHolder createViewHolder(ViewGroup parent, int viewType) {
@@ -365,7 +380,6 @@ public class MainActivityDataSource {
              */
         } else if (VIEW_TYPE_PADDINGBOTTOM == viewType) {
 
-
             inflate = LayoutInflater.from(parent.getContext()).inflate(R.layout.cell_padding, parent, false);
             /*
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams)inflate.getLayoutParams();
@@ -374,18 +388,13 @@ public class MainActivityDataSource {
             */
         } else {
             inflate = LayoutInflater.from(parent.getContext()).inflate(R.layout.cell_item, parent, false);
-
         }
 
-
         return viewHolder == null ? new FlexRecyclerView.SectionViewHolder(inflate) : viewHolder;
-
-
     }
 
     public void bindCellView(int position, RecyclerView.ViewHolder holder) {
         CellData cellData = getCellData(position);
-
 
         if (holder.itemView instanceof TextView) {
             TextView textView = (TextView)holder.itemView;
@@ -432,149 +441,161 @@ public class MainActivityDataSource {
         cellData.displayed = true;
     }
 
+    boolean isVertical() {
+        return ORIENTATION == FlexLayoutManager.VERTICAL;
+    }
+
     void initializeDataSource() {
 
         DataSourceColors dataSourceColors = new DataSourceColors();
 
         CellData cellData = null;
-        mPages = new PageData[NUM_OF_ITEMS_IN_SECTION_FOR_PAGES.length];
+        int boundWidth = isVertical() ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right) :
+                mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
+
+
+        for (int idx = 0; idx < NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length; idx++) {
+            int position = 0;
+            if (mSections.size() > 0) {
+                SectionData lastSectionData = mSections.get(mSections.size() - 1);
+                position = lastSectionData.getPosition() + lastSectionData.getReservedItemCount();
+            }
+
+            SectionData sectionData = new SectionData(mSections.size(), NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART[idx], position);
+            mSections.add(sectionData);
+            mFixedData.addSection(sectionData);
+        }
 
         for (int page = 0; page < NUM_OF_ITEMS_IN_SECTION_FOR_PAGES.length; page++) {
+            PageData pageData = new PageData(mFixedData);
+            mPages.add(pageData);
 
-            SectionData[] sections = new SectionData[NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length + NUM_OF_ITEMS_IN_SECTION_FOR_PAGES[page].length];
+            int[] sections = NUM_OF_ITEMS_IN_SECTION_FOR_PAGES[page];
             for (int idx = 0; idx < sections.length; idx++) {
-                if (page == 0 || (idx >= NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length)) {
-                    sections[idx] = new SectionData();
-                    sections[idx].section = idx;
-                } else {
-                    sections[idx] = mPages[0].sections[idx];
+                int position = 0;
+                if (mSections.size() > 0) {
+                    SectionData lastSectionData = mSections.get(mSections.size() - 1);
+                    position = lastSectionData.getPosition() + lastSectionData.getReservedItemCount();
                 }
+
+                SectionData sectionData = new SectionData(mSections.size(), sections[idx], position);
+                mSections.add(sectionData);
+                pageData.addSection(sectionData);
             }
-
-            int offset = 0;
-            if (page == 0) {
-                for (int idx = 0; idx < NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length; idx++, offset++) {
-                    sections[offset].itemCount = NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART[idx];
-                    sections[offset].items = new ArrayList<>(sections[offset].itemCount);
-
-                    if (offset > 0) {
-                        sections[offset].position = sections[offset - 1].position + sections[offset - 1].itemCount;
-                    }
-                }
-            } else {
-                offset = NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length;
-            }
-
-            for (int idx = 0; idx < NUM_OF_ITEMS_IN_SECTION_FOR_PAGES[page].length; idx++, offset++) {
-                sections[offset].itemCount = NUM_OF_ITEMS_IN_SECTION_FOR_PAGES[page][idx];
-                sections[offset].items = new ArrayList<>(sections[offset].itemCount);
-
-                if (offset > 0) {
-                    sections[offset].position = sections[offset - 1].position + sections[offset - 1].itemCount;
-                }
-            }
-
-            PageData pageData = new PageData();
-            pageData.page = page;
-            pageData.sections = sections;
-
-            mPages[page] = pageData;
         }
 
         // Navigation Bar
-        SectionData section = mPages[0].sections[SECTION_INDEX_NAVBAR];
-        cellData = section.addCellData();
+        SectionData section = mSections.get(SECTION_INDEX_NAVBAR);
+
+        cellData = new CellData();
         cellData.viewType = VIEW_TYPE_NAV;
         cellData.backgroundColor = dataSourceColors.NavBarColor;
-        cellData.text = "Navigation Bar pos=" + section.position;
-        setCellWidth(cellData, section.calcCellWidth());
-        setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+        cellData.text = "Navigation Bar pos=" + section.getPosition();
+        setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+        setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+        section.addCellData(cellData);
 
         int colorIdx = 0;
-        for (int idx = 1; idx < section.itemCount; idx++, colorIdx++) {
-            cellData = section.addCellData();
+        for (int idx = 1; idx < section.getReservedItemCount(); idx++, colorIdx++) {
+            cellData = new CellData();
             cellData.viewType = VIEW_TYPE_ENTRY;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
-            cellData.text = "Entry " + idx + " pos=" + (section.position + idx);
-            setCellWidth(cellData, section.calcCellWidth());
-            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+            cellData.text = "Entry " + idx + " pos=" + (section.getPosition() + idx);
+            setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+            section.addCellData(cellData);
         }
 
         // Entry
-        section = mPages[0].sections[SECTION_INDEX_ENTRY];
+        section = mSections.get(SECTION_INDEX_ENTRY);
         colorIdx = 0;
-        for (int idx = 0; idx < section.itemCount; idx++, colorIdx++) {
-            cellData = section.addCellData();
+        for (int idx = 0; idx < section.getReservedItemCount(); idx++, colorIdx++) {
+            cellData = new CellData();
             cellData.viewType = VIEW_TYPE_ENTRY;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
-            cellData.text = "Entry " + idx + " pos=" + (section.position + idx);
-            setCellWidth(cellData, section.calcCellWidth());
-            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+            cellData.text = "Entry " + idx + " pos=" + (section.getPosition() + idx);
+            setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+            section.addCellData(cellData);
         }
 
         // Test 1
         colorIdx += 4;
-        section = mPages[0].sections[SECTION_INDEX_TEST1];
-        for (int idx = 0; idx < section.itemCount; idx++, colorIdx++) {
-            cellData = section.addCellData();
+        section = mSections.get(SECTION_INDEX_TEST1);
+        for (int idx = 0; idx < section.getReservedItemCount(); idx++, colorIdx++) {
+            cellData = new CellData();
             cellData.viewType = VIEW_TYPE_ENTRY;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
             if (idx == 0) {
-                cellData.text = section.toString() + "\r\nTest1 " + idx + " pos=" + (section.position + idx);
+                cellData.text = section.toString() + "\r\nTest1 " + idx + " pos=" + (section.getPosition() + idx);
             } else {
-                cellData.text = "Test1 " + idx + " pos=" + (section.position + idx);
+                cellData.text = "Test1 " + idx + " pos=" + (section.getPosition() + idx);
             }
-            setCellWidth(cellData, section.calcCellWidth());
-            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+            setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+            section.addCellData(cellData);
         }
 
         // Test 2
-        section = mPages[0].sections[SECTION_INDEX_TEST2];
+        section = mSections.get(SECTION_INDEX_TEST2);
         // section.insets = Insets.of(10, 10, 10, 10);
-        section.lineSpacing = 20;
-        section.interitemSpacing = 20;
+        section.setLineSpacing(20);
+        section.setInteritemSpacing(20);
         colorIdx += 4;
-        for (int idx = 0; idx < section.itemCount; idx++, colorIdx++) {
-            cellData = section.addCellData();
+        for (int idx = 0; idx < section.getReservedItemCount(); idx++, colorIdx++) {
+            cellData = new CellData();
             cellData.viewType = VIEW_TYPE_ENTRY;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(colorIdx);
             if (idx == 0) {
-                cellData.text = section.toString() + "\r\nTest2 " + idx + " pos=" + (section.position + idx);
+                cellData.text = section.toString() + "\r\nTest2 " + idx + " pos=" + (section.getPosition() + idx);
             } else {
-                cellData.text = "Test2 " + idx + " pos=" + (section.position + idx);
+                cellData.text = "Test2 " + idx + " pos=" + (section.getPosition() + idx);
             }
-            setCellWidth(cellData, section.calcCellWidth());
-            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+            setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+            section.addCellData(cellData);
         }
 
         // Catbar
-        section = mPages[0].sections[SECTION_INDEX_CATBAR];
-        for (int idx = 0; idx < section.itemCount; idx++) {
-            cellData = section.addCellData();
+        section = mSections.get(SECTION_INDEX_CATBAR);
+        for (int idx = 0; idx < section.getReservedItemCount(); idx++) {
+            cellData = new CellData();
             cellData.viewType = VIEW_TYPE_CAT;
             cellData.backgroundColor = dataSourceColors.getEntryBackgroundColor(idx);
-            cellData.text = "Category Bar pos=" + (section.position + idx);
-            setCellWidth(cellData, section.calcCellWidth());
-            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.section]));
+            cellData.text = "Category Bar pos=" + (section.getPosition() + idx);
+            setCellWidth(cellData, section.calcCellWidth(isVertical(), mBoundWidth));
+            setCellHeight(cellData, toPixel(ITEM_HEIGHT_IN_SECTION[section.getSection()]));
+            section.addCellData(cellData);
         }
 
         int offsetBase = NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length;
         for (int page = 0; page < NUM_OF_ITEMS_IN_SECTION_FOR_PAGES.length; page++) {
-            PageData pageData = mPages[page];
+            PageData pageData = mPages.get(page);
+            section = pageData.getPageSection(0);
 
-            section = pageData.sections[offsetBase];
-
-            section.columns = 2;
-            section.waterfallMode = true;
+            section.setColumns(2);
+            section.setWaterfallMode(true);
 
             int[] itemHeights1 = {80, 145, 135, 150, 160, 175, 165, 180};
             initializeItems(page, section, ITEM_TEXT_ITEM, dataSourceColors, itemHeights1);
 
-            section = pageData.sections[offsetBase + 1];
-            section.columns = 3;
+            section = pageData.getPageSection(1);
+            section.setColumns(3);
             int[] itemHeights2 = ITEM_HEIGHT_ITEM2;
             initializeItems(page, section, ITEM_TEXT_ITEM2, dataSourceColors, itemHeights2);
 
+            pageData.calcItemCount();
+        }
+
+        SectionData prevSection = null;
+        for (SectionData sectionData : mSections) {
+            if (prevSection != null) {
+                sectionData.setPosition(prevSection.getPosition() + prevSection.getItemCount());
+            }
+            prevSection = sectionData;
+        }
+
+        for (PageData pageData : mPages) {
             pageData.calcItemCount();
         }
     }
@@ -584,10 +605,16 @@ public class MainActivityDataSource {
         int bgIndex = 4 * page;
         int imageColorIndex = 16 * page;
 
-        for (int idx = 0; idx < section.itemCount; idx++, imageColorIndex+=8, bgIndex++) {
+        Insets insets = section.getInsets();
+
+        int boundWidth = isVertical() ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right) :
+                mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
+
+
+        for (int idx = 0; idx < section.getReservedItemCount(); idx++, imageColorIndex+=8, bgIndex++) {
             CellData cellData = new CellData();
 
-            if (section.section == SECTION_INDEX_WITH_FULL_SPAN && section.columns > 1) {
+            if (section.getSection() == SECTION_INDEX_WITH_FULL_SPAN && section.getColumns() > 1) {
                 if (idx == ITEM_INDEX_WITH_FULL_SPAN + page * 2) {
                     cellData.fullSpan = true;
                 }
@@ -596,180 +623,33 @@ public class MainActivityDataSource {
             if (cellData.fullSpan) {
                 cellData.viewType = VIEW_TYPE_FULL_SPAN;
                 cellData.backgroundColor = dsColors.itemColors[bgIndex % dsColors.itemColors.length];
-                setCellWidth(cellData, section.calcFullSpanWidth());
+                setCellWidth(cellData, section.calcFullSpanWidth(isVertical(), boundWidth));
                 setCellHeight(cellData, toPixel(ITEM_HEIGHT_FULL_SPAN));
-                cellData.text = String.format("FullSpan Item: %d, item=%d", page, idx) + " pos=" + (section.position + idx);
+                cellData.text = String.format("FullSpan Page:%d, SI=%d-%d", page, section.getSection(), idx) + " pos=" + (section.getPosition() + idx);
             } else {
-                cellData.viewType = (section.columns == 1) ? VIEW_TYPE_ITEM : VIEW_TYPE_ITEM_HALF_SIZE;
+                cellData.viewType = (section.getColumns() == 1) ? VIEW_TYPE_ITEM : VIEW_TYPE_ITEM_HALF_SIZE;
                 cellData.backgroundColor = dsColors.itemColors[bgIndex % dsColors.itemColors.length];
-                setCellWidth(cellData, section.calcCellWidth());
-                if (section.columns == 1) {
+                setCellWidth(cellData, section.calcCellWidth(isVertical(), boundWidth));
+                if (section.getColumns() == 1) {
                     setCellHeight(cellData, toPixel(itemHeights[(idx % itemHeights.length)]));
                 } else {
                     setCellHeight(cellData, (int)Math.floor(cellData.width) + toPixel(itemHeights[(idx % itemHeights.length)]));
                 }
-                cellData.text = String.format(textFormat, page, idx) + " pos=" + (section.position + idx);
+                cellData.text = String.format(textFormat, page, section.getSection(), idx) + " pos=" + (section.getPosition() + idx);
             }
 
             cellData.imageUrl = "";
 
             cellData.imageBackgroundColor = dsColors.imageColors[(imageColorIndex % dsColors.imageColors.length)];
 
-            section.items.add(cellData);
+            section.addCellData(cellData);
         }
     }
 
-    void initializeUrls() {
-        // mUrls = getUrls(mContext);
-        /*
-        mPageUrls = new ArrayList<>(mAdapter.getPageSize());
-        int numberOfCat = mUrls.length / mAdapter.getPageSize();
-        int idx = 0;
-        for (int catIdx = 0; catIdx < mAdapter.getPageSize(); catIdx++) {
-            List<String> urls = new ArrayList<>(numberOfCat + 1);
-            for (; idx < mUrls.length && urls.size() <= numberOfCat; idx++) {
-                urls.add(mUrls[idx]);
-            }
-            mPageUrls.add(urls);
-        }
 
-         */
-    }
-
-    /*
-    protected String buildProductUrl(int item, int page) {
-        List<String> urls = mPageUrls.get(page);
-        return urls.get(item % urls.size());
-    }
-
-    public static String[] getUrls(Context context) {
-
-        String urls = "";
-        try {
-            urls = MainActivityHelper.getStringResource(R.raw.urls, context);
-        } catch (IOException e) {
-
-        }
-
-        return urls.split("\\r?\\n");
-    }
-
-    public List<List<String>> getUrls(int count) {
-
-        String[] urls = getUrls(mContext);
-        List< List<String> > urlsList = new ArrayList<List<String>>(count);
-
-        int numberOfCat = urls.length / count;
-        int idx = 0;
-        for (int index = 0; index < count; index++)
-        {
-            List<String> urlList = new ArrayList<>(numberOfCat);
-
-            for (; idx < urls.length; idx++) {
-                urlList.add(urls[idx]);
-            }
-            urlsList.add(urlList);
-        }
-
-        return urlsList;
-    }
- */
     private int toPixel(int dip) {
         Resources r = mContext.getResources();
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dip, r.getDisplayMetrics());
-    }
-
-    public class SectionData {
-
-        public int section;
-        public int position;
-
-        public boolean waterfallMode = false;
-
-        public int itemCount = 0;
-        public int columns = 1;
-        public List<CellData> items;
-
-        Insets insets = Insets.NONE;
-
-        int lineSpacing = 0;
-        int interitemSpacing = 0;
-
-        CellData addCellData() {
-            CellData cellData = new CellData();
-            items.add(cellData);
-
-            return cellData;
-        }
-
-        public String toString() {
-            StringBuilder sb = new StringBuilder("");
-            if (!insets.equals(Insets.NONE)) {
-                sb.append("Insets:" + insets.toString() + "\r\n");
-            }
-            if (lineSpacing != 0) {
-                sb.append("lineSpacing:" + lineSpacing + "\r\n");
-            }
-            if (lineSpacing != 0) {
-                sb.append("interitemSpacing:" + interitemSpacing + "\r\n");
-            }
-
-            return sb.toString();
-        }
-
-        public int calcFullSpanWidth() {
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)  : mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
-            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
-
-            return (boundWidth - leftRightOfInsets);
-        }
-
-        public int calcCellWidth() {
-
-            if (columns < 1) {
-                columns = 1;
-            }
-
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)  : mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom);
-            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
-
-
-            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * interitemSpacing) / columns);
-
-            return width;
-        }
-
-        public int calcCellWidth(int column) {
-
-            if (columns < 1) {
-                columns = 1;
-            }
-
-            int boundWidth = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (mBoundWidth - (RECYCLERVIEW_PADDING.left + RECYCLERVIEW_PADDING.right)) : (mBoundHeight - (RECYCLERVIEW_PADDING.top + RECYCLERVIEW_PADDING.bottom));
-            int leftRightOfInsets = (ORIENTATION == FlexLayoutManager.VERTICAL) ? (insets.left + insets.right) : (insets.top + insets.bottom);
-
-            int width = (columns == 1) ? (boundWidth - leftRightOfInsets) : ((boundWidth - leftRightOfInsets - (columns - 1) * lineSpacing) / columns);
-
-            return width;
-        }
-
-    }
-
-
-    public static class PageData {
-
-        public int page;
-        public int itemCount = 0;
-        public SectionData[] sections;
-
-        public void calcItemCount() {
-            itemCount = 0;
-            for (int idx = 0; idx < sections.length; idx++) {
-                itemCount += sections[idx].itemCount;
-            }
-        }
-        // public List<CellData> items1;
-        // public List<CellData> items2;
     }
 
     public class DataSourceColors {
@@ -779,7 +659,6 @@ public class MainActivityDataSource {
         public int LoadMoreColor = Color.rgb(0xFF, 0xDC, 0xB4);
 
         public int FullSpanColor = Color.YELLOW;
-
 
         public int[] itemColors = {0xFFB0E0E6, 0xFF87CEFA, 0xFF87CEEB, 0xFF00BFFF, 0xFF1E90FF, 0xFF6495ED, 0xFF4169E1, 0xFF0000FF, 0xFFB0E0E6, 0xFF87CEFA, 0xFF87CEEB, 0xFF00BFFF, 0xFF1E90FF, 0xFF6495ED, 0xFF4169E1, 0xFF0000FF};
         public int[] imageColors = {0xFF800000, 0xFF8B0000, 0xFFA52A2A, 0xFFB22222, 0xFFDC143C, 0xFFFF0000, 0xFFFF6347, 0xFFFF7F50, 0xFFCD5C5C, 0xFFF08080, 0xFFE9967A, 0xFFFA8072, 0xFFFFA07A, 0xFFFF4500, 0xFFFF8C00, 0xFFFFA500, 0xFFFFD700, 0xFFB8860B, 0xFFDAA520, 0xFFEEE8AA, 0xFFBDB76B, 0xFFF0E68C, 0xFF808000, 0xFFFFFF00, 0xFF9ACD32, 0xFF556B2F, 0xFF6B8E23, 0xFF7CFC00, 0xFF7FFF00, 0xFFADFF2F, 0xFF006400, 0xFF008000, 0xFF228B22, 0xFF00FF00, 0xFF32CD32, 0xFF90EE90, 0xFF98FB98, 0xFF8FBC8F, 0xFF00FA9A, 0xFF00FF7F, 0xFF2E8B57, 0xFF66CDAA, 0xFF3CB371, 0xFF20B2AA, 0xFF2F4F4F, 0xFF008080, 0xFF008B8B, 0xFF00FFFF, 0xFF00FFFF, 0xFFE0FFFF, 0xFF00CED1, 0xFF40E0D0, 0xFF48D1CC, 0xFFAFEEEE, 0xFF7FFFD4, 0xFFB0E0E6, 0xFF5F9EA0, 0xFF4682B4, 0xFF6495ED, 0xFF00BFFF, 0xFF1E90FF, 0xFFADD8E6, 0xFF87CEEB, 0xFF87CEFA, 0xFF191970, 0xFF000080, 0xFF00008B, 0xFF0000CD, 0xFF0000FF, 0xFF4169E1, 0xFF8A2BE2, 0xFF4B0082, 0xFF483D8B, 0xFF6A5ACD, 0xFF7B68EE, 0xFF9370DB, 0xFF8B008B, 0xFF9400D3, 0xFF9932CC, 0xFFBA55D3, 0xFF800080, 0xFFD8BFD8, 0xFFDDA0DD, 0xFFEE82EE, 0xFFFF00FF, 0xFFDA70D6, 0xFFC71585, 0xFFDB7093, 0xFFFF1493, 0xFFFF69B4, 0xFFFFB6C1, 0xFFFFC0CB, 0xFFFAEBD7, 0xFFF5F5DC, 0xFFFFE4C4, 0xFFFFEBCD, 0xFFF5DEB3, 0xFFFFF8DC, 0xFFFFFACD, 0xFFFAFAD2, 0xFFFFFFE0, 0xFF8B4513, 0xFFA0522D, 0xFFD2691E, 0xFFCD853F, 0xFFF4A460, 0xFFDEB887, 0xFFD2B48C, 0xFFBC8F8F, 0xFFFFE4B5, 0xFFFFDEAD, 0xFFFFDAB9, 0xFFFFE4E1, 0xFFFFF0F5, 0xFFFAF0E6, 0xFFFDF5E6, 0xFFFFEFD5, 0xFFFFF5EE, 0xFFF5FFFA, 0xFF708090, 0xFF778899, 0xFFB0C4DE, 0xFFE6E6FA, 0xFFFFFAF0, 0xFFF0F8FF, 0xFFF8F8FF, 0xFFF0FFF0, 0xFFFFFFF0, 0xFFF0FFFF, 0xFFFFFAFA, 0xFF000000, 0xFF696969, 0xFF808080, 0xFFA9A9A9, 0xFFC0C0C0, 0xFFD3D3D3, 0xFFDCDCDC, 0xFFF5F5F5, 0xFFFFFFFF};

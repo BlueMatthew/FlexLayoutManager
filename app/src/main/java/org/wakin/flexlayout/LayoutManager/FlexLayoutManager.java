@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -14,19 +15,12 @@ import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.OrientationHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.wakin.flexlayout.LayoutManager.Elements.FlexFlowSection;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexSection;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexWaterfallSection;
-import org.wakin.flexlayout.MainActivityHelper;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -48,29 +42,37 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     public static final int FLOWLAYOUT = 0;
     public static final int WATERFLAALAYOUT = 1;
 
-    public static final int UpdateActionNone = 0;
-    public static final int UpdateActionInsert = 1;
-    public static final int UpdateActionDelete = 2;
-    public static final int UpdateActionReload = 3;
-    public static final int UpdateActionMove = 4;   // Not implemented yet
+    public static final int LAYOUT_INVALIDATION_NONE = 0;
+    public static final int LAYOUT_INVALIDATION_EVERYTHING = 1;
+    public static final int LAYOUT_INVALIDATION_DATASOURCECHANGED = 2;
+    public static final int LAYOUT_INVALIDATION_PAGES = 4;
 
+    public static final int UPDATE_ACTION_NONE = 0;
+    public static final int UPDATE_ACTION_INSERT = 1;
+    public static final int UPDATE_ACTION_DELETE = 2;
+    public static final int UPDATE_ACTION_RELOAD = 3;
+    public static final int UPDATE_ACTION_MOVE = 4;   // Not implemented yet
 
     public static final int HORIZONTAL = OrientationHelper.HORIZONTAL;
     public static final int VERTICAL = OrientationHelper.VERTICAL;
 
     public static final int INVALID_OFFSET = Integer.MIN_VALUE;
+    public static final Point INVALID_CONTENT_OFFSET = new Point(INVALID_OFFSET, INVALID_OFFSET);
 
     private int mOrientation = VERTICAL;
     private boolean mReverseLayout = false;
 
     private LayoutCallback mLayoutCallback;
 
-    OrientationHelper mOrientationHelper;
-
-    private boolean mLayoutInvalidated = false;
+    private int mLayoutInvalidation = LAYOUT_INVALIDATION_NONE;
 
     private int mMinimumPagableSection = NO_POSITION;
-    private Point mPagingOffset = new Point();
+    // private Point mPagingOffset = new Point();
+    protected int mPagingOffsetX = 0;
+    protected int mPagingOffsetY = 0;
+    protected int mMinPageOffset = 0;
+    protected int mMaxPageOffset = 0;
+    protected List<Integer> mPendingPages = null;
 
     /**
      * When LayoutManager needs to scroll to a position, it sets this variable and requests a
@@ -149,7 +151,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             }
         }
 
-        mLayoutInvalidated = true;
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_EVERYTHING;
     }
 
     /**
@@ -177,8 +179,11 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             return;
         }
         mOrientation = orientation;
-        mOrientationHelper = null;
         requestLayout();
+    }
+
+    public Point getContentOffset() {
+        return mContentOffset;
     }
 
     public void addStickyItem(int section, int item) {
@@ -220,12 +225,82 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         mMinimumPagableSection = minimumPagableSection;
     }
 
-    public void setPagingOffset(Point pagingOffset) {
-        if (pagingOffset == null) {
-            mPagingOffset.set(0, 0);
-            return;
+    public void clearPagingOffset() {
+        mPagingOffsetX = 0;
+        mPagingOffsetY = 0;
+        mMinPageOffset = 0;
+        mMaxPageOffset = 0;
+        mPendingPages = null;
+
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_PAGES;
+
+        //fillRect();
+        requestLayout();
+    }
+
+    public void setPagingOffset(int pagingOffsetX, int pagingOffsetY) {
+        mPagingOffsetX = pagingOffsetX;
+        mPagingOffsetY = pagingOffsetY;
+
+        // int pageSize = mOrientation == VERTICAL ? (getWidth() - getPaddingLeft() - getPaddingRight()) : (getHeight() - getPaddingTop() - getPaddingBottom());
+        int pageSize = mOrientation == VERTICAL ? getWidth() : getHeight();
+        updateActivePages(mOrientation == VERTICAL ? pagingOffsetX : pagingOffsetY, pageSize);
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_PAGES;
+
+        requestLayout();
+    }
+
+    @Override
+    public boolean performAccessibilityAction(RecyclerView.Recycler recycler, RecyclerView.State state, int action, Bundle args) {
+
+        boolean result = super.performAccessibilityAction(recycler, state, action, args);
+
+        if (action == 1) {
+            mPagingOffsetX = args.getInt("offsetX");
+            mPagingOffsetY = args.getInt("offsetY");
+
+            // int pageSize = mOrientation == VERTICAL ? (getWidth() - getPaddingLeft() - getPaddingRight()) : (getHeight() - getPaddingTop() - getPaddingBottom());
+            int pageSize = mOrientation == VERTICAL ? getWidth() : getHeight();
+            boolean pageChanged = updateActivePages(mOrientation == VERTICAL ? mPagingOffsetX : mPagingOffsetY, pageSize);
+
+            if (pageChanged) {
+                mLayoutInvalidation |= LAYOUT_INVALIDATION_PAGES;
+                requestLayout();
+            } else {
+                fillRect(recycler, state);
+            }
+            // requestLayout();
+            // invalidate();
         }
-        mPagingOffset.set(pagingOffset.x, pagingOffset.y);
+
+        return result;
+    }
+
+    protected boolean updateActivePages(int pagingOffset, int pageSize) {
+
+        if (pageSize == 0) {
+            return false;
+        }
+
+        int page = mLayoutCallback.getPage();
+        int numberOfPages = mLayoutCallback.getNumberOfPages();
+        int pageOffset = pagingOffset > 0 ? (int)Math.ceil(pagingOffset / ((double)pageSize)) : (int)Math.floor(pagingOffset / ((double)pageSize));
+        pageOffset = -pageOffset;
+
+        int oldMinPageOffset = mMinPageOffset;
+        int oldMaxPageOffset = mMaxPageOffset;
+
+        mMinPageOffset = Math.max(-page, Math.min(pageOffset, mMinPageOffset));
+        mMaxPageOffset = Math.min(numberOfPages - page - 1, Math.max(pageOffset, mMaxPageOffset));
+
+        if (mMaxPageOffset - mMinPageOffset > 1) {
+            Log.i("Flex", "calc page: min=" + mMinPageOffset + " max=" + mMaxPageOffset);
+        }
+        if (null == mPendingPages) {
+            mPendingPages = new ArrayList<>(4);
+        }
+
+        return oldMinPageOffset != mMinPageOffset || oldMaxPageOffset != mMaxPageOffset;
     }
 
     /**
@@ -256,7 +331,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             return true;
         }
 
-        return (null != mLayoutCallback) && (mLayoutCallback.getPageSize() > 1);
+        return (null != mLayoutCallback) && (mLayoutCallback.getNumberOfPages() > 1);
          */
     }
 
@@ -268,7 +343,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             return true;
         }
 
-        return (null != mLayoutCallback) && (mLayoutCallback.getPageSize() > 1);
+        return (null != mLayoutCallback) && (mLayoutCallback.getNumberOfPages() > 1);
         */
     }
 
@@ -349,19 +424,19 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     }
 
     @Override
-    public RecyclerView.LayoutParams generateDefaultLayoutParams () {
+    public RecyclerView.LayoutParams generateDefaultLayoutParams() {
         // return new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         return new RecyclerView.LayoutParams(0, 0);
     }
 
     @Override
-    public boolean isAutoMeasureEnabled () {
+    public boolean isAutoMeasureEnabled() {
         // return super.isAutoMeasureEnabled();
         return false;
     }
 
     @Override
-    public void onMeasure (RecyclerView.Recycler recycler, RecyclerView.State state, int widthSpec, int heightSpec) {
+    public void onMeasure(RecyclerView.Recycler recycler, RecyclerView.State state, int widthSpec, int heightSpec) {
 
         int oldWidth = getWidth();
         int oldHeight = getHeight();
@@ -374,7 +449,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
         if (oldWidth != width || oldHeight != height) {
             // Size Changed
-            mLayoutInvalidated = true;
+            mLayoutInvalidation |= LAYOUT_INVALIDATION_EVERYTHING;
         }
     }
 
@@ -388,26 +463,19 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingSavedState = null;
         }
 
-        applyPandingScrollPositionWithOffset();
+        applyPendingScrollPositionWithOffset();
 
         // Log.d("Flex", "onLayoutChildren: State=" + state.toString());
 
         fillRect(recycler, state);
     }
 
-    private void offsetLayoutRectToChildViewRect(FlexItem item, Rect rect) {
-        // rect.offset(-mContentOffset.x + getPaddingLeft(), -mContentOffset.y + getPaddingTop());
-        rect.offset(-mContentOffset.x, -mContentOffset.y);
-        if (mMinimumPagableSection != NO_POSITION && item.getSection() >= mMinimumPagableSection && !mPagingOffset.equals(0, 0)) {
-            rect.offset(mPagingOffset.x, mPagingOffset.y);
-        }
-    }
-
     private void offsetLayoutRectToChildViewRect(LayoutItem item, Rect rect) {
         // rect.offset(-mContentOffset.x + getPaddingLeft(), -mContentOffset.y + getPaddingTop());
         rect.offset(-mContentOffset.x, -mContentOffset.y);
-        if (mMinimumPagableSection != NO_POSITION && item.getSection() >= mMinimumPagableSection && !mPagingOffset.equals(0, 0)) {
-            rect.offset(mPagingOffset.x, mPagingOffset.y);
+        if (mMinimumPagableSection != NO_POSITION && item.getSection() >= mMinimumPagableSection && (mPagingOffsetX != 0 || mPagingOffsetY != 0)) {
+
+            rect.offset(mPagingOffsetX, mPagingOffsetY);
         }
     }
 
@@ -426,12 +494,21 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         List<LayoutItem> visibleItems = null;
 
         if (NATIVE) {
+            int page = mLayoutCallback.getPage();
+            int[] displayInfo = FlexLayoutHelper.makeDisplayInfo(this, mLayoutCallback, page + mMinPageOffset, page + mMaxPageOffset, mPagingOffsetX);
+            int[] data = filterItems(mNativeLayout, displayInfo);
 
-            int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(this, mLayoutCallback);
-            int[] data = filterItems(mNativeLayout, layoutInfo);
+            Log.i("Flex", "fillRect page=" + page + "min=" + mMaxPageOffset + " max=" + mMaxPageOffset);
 
             List<LayoutItem> changingStickyItems = new ArrayList<>();
             visibleItems = FlexLayoutHelper.unserializeLayoutItemAndStickyItems(data, changingStickyItems);
+
+            if (mMaxPageOffset >= mMinPageOffset) {
+                for (LayoutItem layoutItem : visibleItems) {
+                    Log.i("Flex", "visibleItems: page=" + layoutItem.getPage() + " pos=" + layoutItem.getPosition() + " section=" + layoutItem.getSection() +
+                            " item=" + layoutItem.getItem() + " pt=" + layoutItem.getFrame().left + "," + layoutItem.getFrame().top);
+                }
+            }
 
             for (LayoutItem layoutItem : changingStickyItems) {
                 if (layoutItem.isInSticky()) {
@@ -544,7 +621,13 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             if (!item.isInSticky()) {
                 int position = item.getPosition();
 
-                childView = recycler.getViewForPosition(position);
+                try {
+                    childView = recycler.getViewForPosition(position);
+                }
+                catch (Exception ex) {
+                    childView = recycler.getViewForPosition(position);
+                    Log.e("Flex", ex.getMessage());
+                }
                 views.put(item, childView);
             }
         }
@@ -664,30 +747,26 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             debugStartTime = System.nanoTime();
         }
 
-        if (mLayoutInvalidated) {
+        if (mLayoutInvalidation != LAYOUT_INVALIDATION_NONE) {
 
             if (NATIVE) {
                 int[] layoutInfo = FlexLayoutHelper.makeLayoutAndSectionsInfo(this, mLayoutCallback);
-                prepareLayout(mNativeLayout, mLayoutCallback, layoutInfo);
-            }
-            else {
+                int page = mLayoutCallback.getPage();
+                int pageStart = page + mMinPageOffset;
+                int pageCount = page + mMaxPageOffset - pageStart + 1;
+                prepareLayout(mNativeLayout, mLayoutCallback, pageStart, pageCount, layoutInfo);
+            } else {
                 mLayout.prepareLayout(this, getWidth(), getHeight(), getPaddingLeft(), getPaddingTop(), getPaddingRight(), getPaddingBottom());
             }
 
-            mLayoutInvalidated = false;
-            // As we have done a complete layout, pending updates can be removed directly
-            if (mPendingUpdateItems != null) {
-                mPendingUpdateItems.clear();
-            }
-        }
-        else if (mPendingUpdateItems != null && !mPendingUpdateItems.isEmpty()) {
-            for (UpdateItem updateItem : mPendingUpdateItems) {
-                switch (updateItem.getAction()) {
-                    case UpdateActionInsert:
-                        break;
-                    case UpdateActionReload:
-                        break;
-                    case UpdateActionDelete:
+            if (mPendingUpdateItems != null && !mPendingUpdateItems.isEmpty()) {
+                for (UpdateItem updateItem : mPendingUpdateItems) {
+                    switch (updateItem.getAction()) {
+                        case UPDATE_ACTION_INSERT:
+                            break;
+                        case UPDATE_ACTION_RELOAD:
+                            break;
+                        case UPDATE_ACTION_DELETE:
                         /*
                         int sectionIndex = sectionFromAdapterPosition(updateItem.getPostionStart());
                         if (sectionIndex != -1) {
@@ -707,11 +786,18 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                             }
                         }
                          */
-                        break;
+                            break;
+                    }
                 }
+
+                mPendingUpdateItems.clear();
             }
 
-            mPendingUpdateItems.clear();
+            mLayoutInvalidation = LAYOUT_INVALIDATION_NONE;
+            // As we have done a complete layout, pending updates can be removed directly
+            if (mPendingUpdateItems != null) {
+                mPendingUpdateItems.clear();
+            }
         }
 
         if (DEBUG) {
@@ -761,7 +847,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                         // final int dy = calculateDyToMakeVisible(targetView, getVerticalSnapPreference());
                         int distance = 0;
                         if (NATIVE) {
-                            int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(FlexLayoutManager.this, mLayoutCallback);
+                            int[] layoutInfo = FlexLayoutHelper.makeLayoutInfo(FlexLayoutManager.this, mLayoutCallback, mMinPageOffset, mMaxPageOffset, null);
                             int contentOffset = computerContentOffsetToMakePositionTopVisible(mNativeLayout, layoutInfo, this.getTargetPosition(), 0);
                             if (getOrientation() == VERTICAL) {
                                 distance = Math.abs(mContentOffset.y - contentOffset);
@@ -790,18 +876,20 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         startSmoothScroll(linearSmoothScroller);
     }
 
+    /*
     public void onAttachedToWindow (RecyclerView view) {
-        mLayoutInvalidated = true;
+        mLayoutInvalidation = true;
         super.onAttachedToWindow(view);
     }
+     */
 
     public void onAdapterChanged(RecyclerView.Adapter oldAdapter, RecyclerView.Adapter newAdapter) {
-        mLayoutInvalidated = true;
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_EVERYTHING;
         super.onAdapterChanged(oldAdapter, newAdapter);
     }
 
     public void onItemsChanged (RecyclerView recyclerView) {
-        mLayoutInvalidated = true;
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_EVERYTHING;
         super.onItemsChanged(recyclerView);
     }
 
@@ -811,7 +899,9 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingUpdateItems = new ArrayList<>();
         }
 
-        // mPendingUpdateItems.add(new UpdateItem(UpdateActionInsert, positionStart, itemCount));
+        mPendingUpdateItems.add(new UpdateItem(UPDATE_ACTION_INSERT, positionStart, itemCount));
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_DATASOURCECHANGED;
+
     }
 
     public void onItemsRemoved (RecyclerView recyclerView, int positionStart, int itemCount) {
@@ -820,7 +910,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingUpdateItems = new ArrayList<>();
         }
 
-        // mPendingUpdateItems.add(new UpdateItem(UpdateActionDelete, positionStart, itemCount));
+        mPendingUpdateItems.add(new UpdateItem(UPDATE_ACTION_DELETE, positionStart, itemCount));
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_DATASOURCECHANGED;
     }
 
     public void onItemsUpdated (RecyclerView recyclerView, int positionStart, int itemCount) {
@@ -829,7 +920,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingUpdateItems = new ArrayList<>();
         }
 
-        // mPendingUpdateItems.add(new UpdateItem(UpdateActionReload, positionStart, itemCount));
+        mPendingUpdateItems.add(new UpdateItem(UPDATE_ACTION_RELOAD, positionStart, itemCount));
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_DATASOURCECHANGED;
     }
 
     public void onItemsUpdated (RecyclerView recyclerView, int positionStart, int itemCount, Object payload) {
@@ -838,7 +930,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             mPendingUpdateItems = new ArrayList<>();
         }
 
-        // mPendingUpdateItems.add(new UpdateItem(UpdateActionReload, positionStart, itemCount));
+        mPendingUpdateItems.add(new UpdateItem(UPDATE_ACTION_RELOAD, positionStart, itemCount));
+        mLayoutInvalidation |= LAYOUT_INVALIDATION_DATASOURCECHANGED;
     }
 
     public int getVerticalVisibleHeight() {
@@ -853,7 +946,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     protected PointF computeScrollVectorForPosition(int position) {
         PointF pt = null;
         if (NATIVE) {
-            int[] data = getItemRect(mNativeLayout, position);
+            int[] data = getItemRect(mNativeLayout, 0, position);
             Rect rect = FlexLayoutHelper.intArrayToRect(data);
             if (rect != null) {
                 if (getOrientation() == HORIZONTAL) {
@@ -870,11 +963,9 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         return pt;
     }
 
-    protected void applyPandingScrollPositionWithOffset() {
+    protected void applyPendingScrollPositionWithOffset() {
 
         if (mPendingScrollPosition != NO_POSITION) {
-
-
 
             if (NATIVE) {
                 if (mPendingScrollPositionOffset == INVALID_OFFSET) {
@@ -915,10 +1006,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
             mPendingScrollPosition = NO_POSITION;
             mPendingScrollPositionOffset = INVALID_OFFSET;
-
         }
     }
-
 
     protected static native void initLayoutEnv(Class callbackClass);
     protected native long createLayout(LayoutCallback layoutCallback);
@@ -926,10 +1015,10 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
     protected native void clearStickyItems(long layout);
     protected native void setStackedStickyItems(long layout, boolean stackedStickyItems);
     protected native boolean isStackedStickyItems(long layout);
-    protected native void prepareLayout(long layout, LayoutCallback layoutCallback, int[] layoutInfo);
+    protected native void prepareLayout(long layout, LayoutCallback layoutCallback, int pageStart, int pageCount, int[] layoutInfo);
     // protected native int[] filterItems(long layout, int orientation, int width, int height, int paddingLeft, int paddingTop, int paddingRight, int paddingBottom, int contentWidth, int contentHeight, int contentOffsetX, int contentOffsetY);
     protected native int[] filterItems(long layout, int[] layoutInfo);
-    protected native int[] getItemRect(long layout, int position);
+    protected native int[] getItemRect(long layout, int page, int position);
     protected native int computerContentOffsetToMakePositionTopVisible(long layout, int[] layoutInfo, int position, int positionOffset);
     protected native void releaseLayout(long layout);
 

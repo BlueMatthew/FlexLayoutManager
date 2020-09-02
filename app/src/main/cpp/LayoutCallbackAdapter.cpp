@@ -68,9 +68,8 @@ LayoutCallbackAdapter::LayoutCallbackAdapter(JNIEnv* env, jobject obj, jobject c
 
     // org/wakin/flexlayout/LayoutManager/Size
     jclass sizeClass = m_env->FindClass(JAVA_CLASS_SIZE);
-    jmethodID sizeConstructorMid = env->GetMethodID(sizeClass, "<init>", "()V");
+    jobject localSize = m_env->NewObject(sizeClass, m_sizeConstructorMid);
 
-    jobject localSize = m_env->NewObject(sizeClass, sizeConstructorMid);
     m_itemSize = m_env->NewGlobalRef(localSize);
 
     m_env->DeleteLocalRef(localSize);
@@ -119,6 +118,11 @@ int LayoutCallbackAdapter::getNumberOfSections() const
 {
     // ASSERT(NULL != m_layoutInfo)
     return m_layoutAndSectionsInfo->numberOfSections;
+}
+
+int LayoutCallbackAdapter::getPositionForSection(int section) const
+{
+    return m_layoutAndSectionsInfo->sections[section].position;
 }
 
 int LayoutCallbackAdapter::getLayoutModeForSection(int section) const
@@ -219,7 +223,9 @@ Size LayoutCallbackAdapter::getSizeForItem(int section, int item, bool *isFullSp
     if (NULL == m_itemSize)
     {
         jclass sizeClass = m_env->FindClass(JAVA_CLASS_SIZE);
-        m_itemSize = m_env->NewObject(sizeClass, m_sizeConstructorMid);
+        jobject localSize = m_env->NewObject(sizeClass, m_sizeConstructorMid);
+        m_itemSize = m_env->NewGlobalRef(localSize);
+        m_env->DeleteLocalRef(localSize);
         m_env->DeleteLocalRef(sizeClass);
     }
 
@@ -247,4 +253,52 @@ bool LayoutCallbackAdapter::hasFixedItemSize(int section, Size *fixedItemSize)
     return m_layoutAndSectionsInfo->sections[section].hasFixedItemSize;
 }
 
-// int getPageSize();
+int LayoutCallbackAdapter::getPage() const
+{
+    return m_layoutAndSectionsInfo->page;
+}
+
+int LayoutCallbackAdapter::getNumberOfPages() const
+{
+    return m_layoutAndSectionsInfo->numberOfPages;
+}
+
+int LayoutCallbackAdapter::getNumberOfFixedSections() const
+{
+    return m_layoutAndSectionsInfo->numberOfFixedSections;
+}
+
+int LayoutCallbackAdapter::getNumberOfSectionsForPage(int page) const
+{
+    return page < m_layoutAndSectionsInfo->numberOfPageSections.size() ? m_layoutAndSectionsInfo->numberOfPageSections[page] : 0;
+}
+
+void LayoutCallbackAdapter::getPageSections(int page, std::vector<int> &pageSections) const
+{
+    int numberOfPageSections = page < m_layoutAndSectionsInfo->numberOfPageSections.size() ? m_layoutAndSectionsInfo->numberOfPageSections[page] : 0;
+    // numberOfPageSections += m_layoutAndSectionsInfo->numberOfFixedSections;
+
+    pageSections.clear();
+    if (numberOfPageSections + m_layoutAndSectionsInfo->numberOfFixedSections > 0)
+    {
+        pageSections.resize(numberOfPageSections + m_layoutAndSectionsInfo->numberOfFixedSections);
+        std::vector<int>::iterator it = pageSections.begin();
+        for (int index = 0; index < m_layoutAndSectionsInfo->numberOfFixedSections; ++index, ++it)
+        {
+            *it = index;
+        }
+        int pageSectionIndexBase = m_layoutAndSectionsInfo->numberOfFixedSections;
+        for (int pageIndex = 0; pageIndex < page; ++pageIndex)
+        {
+            pageSectionIndexBase += m_layoutAndSectionsInfo->numberOfPageSections[pageIndex];
+        }
+
+        for (int index = pageSectionIndexBase; index < pageSectionIndexBase + numberOfPageSections; ++index, ++it)
+        {
+            *it = index;
+        }
+    }
+
+}
+
+// int getNumberOfPages();

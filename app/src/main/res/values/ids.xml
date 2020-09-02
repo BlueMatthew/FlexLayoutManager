@@ -7,4 +7,5 @@
     <item name="title" type="id" />
     <item name="loading" type="id" />
     <item name="netImageView" type="id" />
+    <item name="pagingFlag" type="id" />
 </resources>

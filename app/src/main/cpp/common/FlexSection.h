@@ -148,9 +148,9 @@ namespace nsflex
         
         inline Rect getItemFrameInView(TInt item) const
         {
-#ifdef DEBUG
+#ifndef NDEBUG
             assert(item < m_items.size());
-#endif // DEBUG
+#endif // NDEBUG
             Rect rect(m_items[item]->getFrame());
             rect.offset(m_itemsFrame.left(), m_itemsFrame.top());
             return getFrameInView(rect);

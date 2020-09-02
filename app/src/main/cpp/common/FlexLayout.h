@@ -157,22 +157,27 @@ public:
     using FlexItem::getType;
 
 protected:
+    TInt m_page;
     TInt m_section;
     bool m_inSticky;
     bool m_originChanged;
 
 public:
-    LayoutItemT() : FlexItem(), m_section(0), m_inSticky(false), m_originChanged(false) {}
-    LayoutItemT(TInt s, TInt i) : FlexItem(i), m_section(s), m_inSticky(false), m_originChanged(false) {}
-    LayoutItemT(TInt s, TInt i,const Rect &f) : FlexItem(i, f), m_section(s), m_inSticky(false), m_originChanged(false) {}
-    LayoutItemT(TInt section, const FlexItem &src) : FlexItem(src), m_section(section), m_inSticky(false), m_originChanged(false) {}
-    LayoutItemT(const LayoutItemT &src) : FlexItem((const FlexItem &)src), m_section(src.m_section), m_inSticky(src.m_inSticky), m_originChanged(src.m_originChanged) {}
+    LayoutItemT() : FlexItem(), m_page(0), m_section(0), m_inSticky(false), m_originChanged(false) {}
+    // LayoutItemT(TInt s, TInt i) : FlexItem(i), m_section(s), m_inSticky(false), m_originChanged(false) {}
+    LayoutItemT(TInt page, TInt s, TInt i, const Rect &f) : FlexItem(i, f), m_page(page), m_section(s), m_inSticky(false), m_originChanged(false) {}
+    LayoutItemT(TInt page, TInt section, const FlexItem &src) : FlexItem(src), m_page(page), m_section(section), m_inSticky(false), m_originChanged(false) {}
+    LayoutItemT(const LayoutItemT &src) : FlexItem((const FlexItem &)src), m_page(src.m_page), m_section(src.m_section), m_inSticky(src.m_inSticky), m_originChanged(src.m_originChanged) {}
     LayoutItemT(const LayoutItemT *src) : LayoutItemT(*src) {}
+
+    template<class TSection>
+    LayoutItemT(TInt page, const TSection &section, const FlexItem &src) : FlexItem(src), m_page(page), m_section(section.getSection()), m_inSticky(false), m_originChanged(false) {}
+
 
     template <class TStickySectionItem>
     inline static LayoutItemT makeLayoutItem(const TStickySectionItem &stickySectionItem, const Rect &rect)
     {
-        LayoutItemT layoutItem(stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
+        LayoutItemT layoutItem(0, stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
 #ifdef HAVING_HEADER_AND_FOOTER
         layoutItem.setHeader(true);
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
@@ -183,6 +188,7 @@ public:
     {
         if (this == &other) return *this;
 
+        m_page = other.m_page;
         m_section = other.m_section;
         FlexItem::m_item = other.m_item;
         // this->position = position;
@@ -242,33 +248,39 @@ public:
         return equalsSectionItem(*other);
     }
 
-    TInt getSection() const
+    inline TInt getPage() const
+    {
+        return m_page;
+    }
+
+    inline TInt getSection() const
     {
         return m_section;
     }
 
-    void setInSticky(bool inSticky)
+    inline void setInSticky(bool inSticky)
     {
         m_inSticky = inSticky;
     }
 
-    bool isInSticky() const
+    inline bool isInSticky() const
     {
         return m_inSticky;
     }
 
-    void setOriginChanged(bool originChanged)
+    inline void setOriginChanged(bool originChanged)
     {
         m_originChanged = originChanged;
     }
 
-    bool isOriginChanged() const
+    inline bool isOriginChanged() const
     {
         return m_originChanged;
     }
 
-    void reset(int section, int item, const Rect &frame, bool inSticky, bool originChanged)
+    void reset(TInt page, TInt section, TInt item, const Rect &frame, bool inSticky, bool originChanged)
     {
+        m_page = page;
         m_section = section;
         FlexItem::m_item = item;
         FlexItem::m_frame = frame;
@@ -279,9 +291,9 @@ public:
 };
 
 template <class TLayoutItem, class TStickySectionItem>
-inline TLayoutItem makeLayoutItem(const TStickySectionItem &stickySectionItem, const typename TLayoutItem::Rect &rect)
+inline TLayoutItem makeLayoutItem(typename TLayoutItem::TInt page, const TStickySectionItem &stickySectionItem, const typename TLayoutItem::Rect &rect)
 {
-    TLayoutItem layoutItem(stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
+    TLayoutItem layoutItem(page, stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
 #ifdef HAVING_HEADER_AND_FOOTER
     layoutItem.setHeader(true);
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
@@ -313,7 +325,6 @@ public:
     // using StickyItem = StickyItemT<TInt, TCoordinate>;
     using LayoutItem = LayoutItemT<TInt, TCoordinate>;
 
-
     using Point = typename TBase ::Point;
     using Size = typename TBase::Size;
     using Rect = typename TBase::Rect;
@@ -334,36 +345,35 @@ public:
     template<class TStickySectionItem>
     using StickyItemList = std::vector<std::pair<TStickySectionItem, StickyItemState>>;
 
-    using TBase::x;
     using TBase::y;
-    using TBase::left;
     using TBase::top;
-    using TBase::right;
     using TBase::bottom;
 
-    using TBase::offset;
+    using TBase::offsetX;
     using TBase::offsetY;
 
-    using TBase::leftBottom;
     using TBase::height;
     using TBase::width;
 
-    using TBase::hinsets;
-    using TBase::vinsets;
     using TBase::makeSize;
     using TBase::makeRect;
 
 protected:
 
+    TInt m_page;
     std::vector<Section *> m_sections;
     Size m_contentSize;
 
 public:
-    
-    FlexLayoutT()
-    {
 
+    FlexLayoutT() : m_page(0)
+    {
     }
+
+    FlexLayoutT(TInt page) : m_page(page)
+    {
+    }
+
     ~FlexLayoutT()
     {
         clearSections();
@@ -447,9 +457,15 @@ public:
     {
         // Clear all sections, maybe optimize later
         clearSections();
-        
-        TInt sectionCount = layoutCallbackAdapter.getNumberOfSections();
-        if (sectionCount <= 0)
+
+        TInt numberOfPages = layoutCallbackAdapter.getNumberOfPages();
+        // TInt sectionCount = layoutCallbackAdapter.getNumberOfSections();
+        TInt numberOfFixedSections = layoutCallbackAdapter.getNumberOfFixedSections();
+        // std::vector<int> fixedSections;
+        std::vector<int> pageSections;
+        layoutCallbackAdapter.getPageSections(m_page, pageSections);
+
+        if (pageSections.empty())
         {
             // Set contentSize to bound size
             m_contentSize = boundSize;;
@@ -458,12 +474,12 @@ public:
         
         // Initialize width and set height to 0, layout will calculate new height
         Rect rectOfSection = makeRect(0, 0, width(boundSize), 0);
-        for (TInt sectionIndex = 0; sectionIndex < sectionCount; sectionIndex++)
+        for (std::vector<int>::const_iterator it = pageSections.cbegin(); it != pageSections.cend(); ++it)
         {
-            int layoutMode = layoutCallbackAdapter.getLayoutModeForSection(sectionIndex);
+            int layoutMode = layoutCallbackAdapter.getLayoutModeForSection(*it);
             Section *section = layoutMode == FlexLayoutModeWaterfall ?
-            static_cast<Section *>(new WaterfallSection(sectionIndex, rectOfSection)) :
-            static_cast<Section *>(new FlowSection(sectionIndex, rectOfSection));
+                static_cast<Section *>(new WaterfallSection(*it, rectOfSection)) :
+                static_cast<Section *>(new FlowSection(*it, rectOfSection));
 
             section->prepareLayout(&layoutCallbackAdapter, boundSize);
             
@@ -516,7 +532,7 @@ public:
     {
     }
 
-    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
+    virtual bool adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
     {
         origin = rect.origin;
 
@@ -532,6 +548,11 @@ public:
             top(rect, std::min(std::max(top(padding) + y(contentOffset), (top(frameItems) - height(rect))),
                                (bottom(frameItems) - height(rect))));
         }
+
+        return top(rect) >= y(origin) && top(rect) == y(contentOffset) + totalStickyItemSize;
+        // return top(rect) > y(origin);
+        // stickyMode = (layoutAttributes.frame.origin.y >= oldOrigin.y) && (layoutAttributes.frame.origin.y == contentOffset.y + totalHeaderHeight) ? YES : NO;
+        //
     }
 
     template <class TLayoutItem, class TStickyItem>
@@ -574,7 +595,7 @@ public:
 
             TCoordinate stickyItemSize = height(rect);
 
-            adjustFrameForStickyItem(rect, origin, it->first.getSection(), it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
+            bool stickyMode = adjustFrameForStickyItem(rect, origin, it->first.getSection(), it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
             /*
             if (stackedStickyItems)
             {
@@ -590,9 +611,10 @@ public:
 
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
-            bool stickyMode = top(rect) >= y(origin);
-            bool originChanged = top(rect) > y(origin);
+            // stickyMode = (layoutAttributes.frame.origin.y >= oldOrigin.y) && (layoutAttributes.frame.origin.y == contentOffset.y + totalHeaderHeight) ? YES : NO;
+            // bool stickyMode = top(rect) >= y(origin) && ;
             // bool stickyMode = (rect.origin.y >= origin.y);
+            bool originChanged = top(rect) > y(origin);
             if (stickyMode != it->second.isInSticky())
             {
                 // Pass the change info to caller
@@ -631,9 +653,15 @@ public:
 
     // LayoutItem::data == 1, indicates that the item is sticky
     template <class TLayoutItem, class TStickyItem>
-    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset) const
+    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset, TCoordinate pagingOffset, TInt fixedSection, TInt currentPage) const
     {
-        SectionConstIteratorPair range = std::equal_range(m_sections.begin(), m_sections.end(), std::pair<TCoordinate, TCoordinate>(top(rect), bottom(rect)), SectionCompare());
+        if (fixedSection >= m_sections.size())
+        {
+            return;
+        }
+        SectionConstIterator itStart = m_sections.cbegin();
+        if (m_page != currentPage) itStart += fixedSection;
+        SectionConstIteratorPair range = std::equal_range(itStart, m_sections.cend(), std::pair<TCoordinate, TCoordinate>(top(rect), bottom(rect)), SectionCompare());
         
         if (range.first == range.second)
         {
@@ -653,15 +681,21 @@ public:
             
             for (ItemConstIterator itItem = flexItems.begin(); itItem != flexItems.end(); ++itItem)
             {
-                TLayoutItem layoutItem((*it)->getSection(), *(*itItem));
+                // TLayoutItem layoutItem(m_page, (*it)->getSection(), *(*itItem));
+                TLayoutItem layoutItem(m_page, *(*it), *(*itItem));
                 layoutItem.getFrame() = (*it)->getItemFrameInView(*itItem);
+                if (m_page != currentPage || (*it)->getSection() >= fixedSection)
+                {
+                    offsetX(layoutItem.getFrame(), pagingOffset);
+                }
+
                 items.push_back(layoutItem);
             }
             
             flexItems.clear();
         }
 
-        if (!stickyItems.empty())
+        if (currentPage == m_page && !stickyItems.empty())
         {
             getStickyItems(items, changingStickyItems, stickyItems, stackedStickyItems, range, contentOffset, padding);
         }
@@ -711,16 +745,14 @@ public:
     
 protected:
 
-
-    /*
-    template <class TLayoutItem>
-    TLayoutItem makeLayoutItem(const Section &section, const FlexItem &item)
+    template<class TLayoutItem>
+    void makeLayoutItem(const Section &section, const FlexItem &item, TLayoutItem &layoutItem)
     {
-        TLayoutItem layoutItem(section.getSection(), item);
-        layoutItem.getFrame() = section.getItemFrameInView(item);
-        return layoutItem;
+        // TLayoutItem layoutItem(section.getSection(), item);
+        // layoutItem.getFrame() = section.getItemFrameInView(item);
+        // return layoutItem;
     }
-     */
+
 
     inline void clearSections()
     {

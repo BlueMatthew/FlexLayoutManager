@@ -170,7 +170,7 @@ protected:
             numberOfColumns = 1;
         }
         Insets sectionInset = TBaseSection::getInsets(layout);
-        
+
         if (numberOfColumns != m_columns.size() || minInvalidatedItem == 0 || TBaseSection::isSectionInvalidated())
         {
             // If NumberOfColumns changes, we need relayout all items
@@ -214,7 +214,7 @@ protected:
             // Remove all layout-invalidated items from columns
             removeItemsInColumns(minInvalidatedItem);
         }
-        
+
         TCoordinate minimumLineSpacing = TBaseSection::getMinimumLineSpacing(layout);
         
         // Layout each item

@@ -2,8 +2,17 @@
 // Created by Matthew Shi on 2020-07-19.
 //
 #include <jni.h>
-#include <vector>
-#include "common/FlexLayout.h"
+
+#ifndef NDEBUG
+#include <android/log.h>
+
+#define TAG "NDK"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
+
+#endif // NDK_DEBUG
+
 #include "LayoutCallbackAdapter.h"
 #include "FlexLayoutManager.h"
 
@@ -26,7 +35,7 @@ void FlexLayoutManager::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass)
     }
 }
 
-FlexLayoutManager::FlexLayoutManager(JNIEnv* env, jobject layoutManager) : m_orientation(VERTICAL), m_verticalLayout(NULL), m_horizontalLayout(NULL)
+FlexLayoutManager::FlexLayoutManager(JNIEnv* env, jobject layoutManager) : m_orientation(VERTICAL)
 {
     jclass layoutManagerClass = env->GetObjectClass(layoutManager);
     jmethodID mid = env->GetMethodID(layoutManagerClass, "getOrientation", "()I");
@@ -36,90 +45,124 @@ FlexLayoutManager::FlexLayoutManager(JNIEnv* env, jobject layoutManager) : m_ori
 
 FlexLayoutManager::~FlexLayoutManager()
 {
-    if (NULL != m_verticalLayout)
-    {
-        delete m_verticalLayout;
-        m_verticalLayout = NULL;
-    }
-    if (NULL != m_horizontalLayout)
-    {
-        delete m_horizontalLayout;
-        m_horizontalLayout = NULL;
-    }
+    cleanVerticalLayouts();
+    cleanHorizontalLayouts();
 }
 
-Size FlexLayoutManager::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo)
+Size FlexLayoutManager::prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, int pageStart, int pageCount, const LayoutAndSectionsInfo &layoutAndSectionsInfo)
 {
     m_orientation = layoutAndSectionsInfo.orientation;
     Size contentSize;
     Size boundSize(layoutAndSectionsInfo.size.width - (layoutAndSectionsInfo.padding.left + layoutAndSectionsInfo.padding.right), layoutAndSectionsInfo.size.height - (layoutAndSectionsInfo.padding.top + layoutAndSectionsInfo.padding.bottom));
     if (isVertical())
     {
-        if (NULL != m_horizontalLayout)
-        {
-            delete m_horizontalLayout;
-            m_horizontalLayout = NULL;
-        }
-        if (NULL == m_verticalLayout)
-        {
-            m_verticalLayout = new VerticalLayout();
-        }
+        cleanHorizontalLayouts();
+        buildVerticalLayouts(layoutAndSectionsInfo.numberOfPages);
 
-
-        m_verticalLayout->prepareLayout(layoutCallbackAdapter, boundSize, layoutAndSectionsInfo.padding);
-        m_verticalLayout->updateStickyItemPosition(m_stickyItems);
-        contentSize = m_verticalLayout->getContentSize();
+        VerticalLayoutIterator it = m_verticalLayout.begin() + pageStart;
+        for (int idx = 0; idx < pageCount; ++idx, ++it)
+        {
+            LOGI("FLEX prepareLayout: page=%d", idx);
+            (*it)->prepareLayout(layoutCallbackAdapter, boundSize, layoutAndSectionsInfo.padding);
+            (*it)->updateStickyItemPosition(m_stickyItems);
+            if ((pageStart + idx) == layoutAndSectionsInfo.page)
+            {
+                contentSize = (*it)->getContentSize();
+                layoutCallbackAdapter.updateContentSize(contentSize.width, contentSize.height);
+            }
+            LOGI("FLEX prepareLayout end: page=%d", idx);
+        }
     }
     else
     {
-        if (NULL != m_verticalLayout)
-        {
-            delete m_verticalLayout;
-            m_verticalLayout = NULL;
-        }
-        if (NULL == m_horizontalLayout)
-        {
-            m_horizontalLayout = new HorizontalLayout();
-        }
+        cleanVerticalLayouts();
+        buildHorizontalLayouts(layoutAndSectionsInfo.numberOfPages);
 
-        m_horizontalLayout->prepareLayout(layoutCallbackAdapter, boundSize, layoutAndSectionsInfo.padding);
-        m_horizontalLayout->updateStickyItemPosition(m_stickyItems);
-        contentSize = m_horizontalLayout->getContentSize();
+        HorizontalLayoutIterator it = m_horizontalLayout.begin() + pageStart;
+        for (int idx = 0; idx < pageCount; ++idx, ++it)
+        {
+            (*it)->prepareLayout(layoutCallbackAdapter, boundSize, layoutAndSectionsInfo.padding);
+            (*it)->updateStickyItemPosition(m_stickyItems);
+            if ((pageStart + idx) == layoutAndSectionsInfo.page)
+            {
+                contentSize = (*it)->getContentSize();
+                layoutCallbackAdapter.updateContentSize(contentSize.width, contentSize.height);
+            }
+        }
     }
 
-    layoutCallbackAdapter.updateContentSize(contentSize.width, contentSize.height);
     return contentSize;
 }
 
 void FlexLayoutManager::updateItems(int action, int itemStart, int itemCount)
 {
+    /*
     isVertical() ?
         m_verticalLayout->updateItems(action, itemStart, itemCount) :
         m_horizontalLayout->updateItems(action, itemStart, itemCount);
+        */
 }
 
-void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const LayoutInfo &layoutInfo) const
+void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const DisplayInfo &displayInfo) const
 {
-    Rect rect(layoutInfo.contentOffset.x, layoutInfo.contentOffset.y, layoutInfo.size.width, layoutInfo.size.height);   // visibleRect
+    Rect rect(displayInfo.contentOffset.x, displayInfo.contentOffset.y, displayInfo.size.width, displayInfo.size.height);   // visibleRect
 
-    isVertical() ?
-        m_verticalLayout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset) :
-        m_horizontalLayout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset);
+    if (isVertical())
+    {
+        VerticalLayoutConstIterator itBegin = m_verticalLayout.cbegin();
+        for (std::vector<std::pair<int, Point>>::const_iterator itPage = displayInfo.pendingPages.cbegin(); itPage != displayInfo.pendingPages.cend(); ++itPage)
+        {
+            int pagingOffset = displayInfo.pagingOffset;
+            if (itPage->first != displayInfo.page)
+            {
+                pagingOffset += (itPage->first - displayInfo.page) * (displayInfo.size.width);
+                // contentSize = (*it)->getContentSize();
+                // layoutCallbackAdapter.updateContentSize(contentSize.width, contentSize.height);
+            }
+
+            LOGI("TouchMove: getItems page=%d, offset=%d width=%d", itPage->first, pagingOffset, displayInfo.size.width);
+            VerticalLayout *layout = *(itBegin + itPage->first);
+            // int sectionsSkiped = (*itPage) != displayInfo.page ? displayInfo.numberOfFixedSections : 0;
+            std::vector<LayoutItem> pageItems;
+            layout->getItemsInRect(pageItems, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize,
+                    displayInfo.padding, itPage->first == displayInfo.page ? displayInfo.contentOffset : itPage->second, pagingOffset, displayInfo.numberOfFixedSections, displayInfo.page);
+
+            items.insert(items.end(), pageItems.cbegin(), pageItems.cend());
+        }
+    }
+    else
+    {
+        HorizontalLayout *layout = m_horizontalLayout[displayInfo.page];
+        // layout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize, displayInfo.padding, displayInfo.contentOffset);
+    }
 }
 
-bool FlexLayoutManager::getItem(int position, LayoutItem &layoutItem) const
+bool FlexLayoutManager::getItem(int page, int position, LayoutItem &layoutItem) const
 {
-    return isVertical() ?
-        m_verticalLayout->getItem(position, layoutItem) :
-        m_horizontalLayout->getItem(position, layoutItem);
-}
+    if (isVertical())
+    {
+        VerticalLayout *layout = m_verticalLayout[page];
+        return layout->getItem(position, layoutItem);
+    }
+    else
+    {
+        HorizontalLayout *layout = m_horizontalLayout[page];
+        return layout->getItem(position, layoutItem);
+    }
+ }
 
 int FlexLayoutManager::computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const
 {
-    return isVertical() ?
-        m_verticalLayout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset) :
-        m_horizontalLayout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
-
+    if (isVertical())
+    {
+        VerticalLayout *layout = m_verticalLayout[layoutInfo.page];
+        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
+    }
+    else
+    {
+        HorizontalLayout *layout = m_horizontalLayout[layoutInfo.page];
+        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
+    }
 }
 
 // JNI Functions
@@ -225,7 +268,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
         jobject javaThis,
         jlong layout,
         jobject layoutCallback,
-        jintArray layoutAndSectionsInfo) {
+        jint pageStart, jint pageCount, jintArray layoutAndSectionsInfo) {
 
     FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
     if (NULL == layoutManager || NULL == layoutAndSectionsInfo)
@@ -247,7 +290,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
 
     LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutAndSectionsInfo);
 
-    Size contentSize = layoutManager->prepareLayout(layoutCallbackAdapter, localLayoutAndSectionsInfo);
+    Size contentSize = layoutManager->prepareLayout(layoutCallbackAdapter, pageStart, pageCount, localLayoutAndSectionsInfo);
 
 }
 
@@ -257,9 +300,6 @@ extern "C" JNIEXPORT jintArray JNICALL
         jobject javaThis,
         jlong layout,
         jintArray layoutInfo) {
-
-    // void getItemsInRect(std::vector<LayoutItem *> items, const Rect &bounds, const Rect &rect, const Point &contentOffset);
-
 
     FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
     if (NULL == layoutManager || NULL == layoutInfo)
@@ -275,16 +315,16 @@ extern "C" JNIEXPORT jintArray JNICALL
     std::vector<int> buffer;
     buffer.resize(arrayLength);
     env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
-    LayoutInfo localLayoutInfo;
-    localLayoutInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+    DisplayInfo localDisplayInfo;
+    localDisplayInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
 
     std::vector<LayoutItem> items;
     FlexLayoutManager::StickyItemList changingStickyItems;
 
-    layoutManager->getItemsInRect(items, changingStickyItems, localLayoutInfo);
+    layoutManager->getItemsInRect(items, changingStickyItems, localDisplayInfo);
 
     buffer.clear();
-    buffer.reserve(items.size() * 9 + changingStickyItems.size() * 7 + 2);
+    buffer.reserve(items.size() * 10 + changingStickyItems.size() * 7 + 2);
     buffer.push_back(items.size());
     for (typename std::vector<LayoutItem>::const_iterator it = items.cbegin(); it != items.cend(); ++it)
     {
@@ -307,7 +347,7 @@ extern "C" JNIEXPORT jintArray JNICALL
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
-        jint position) {
+        jint page, jint position) {
 
     FlexLayoutManager *layoutManager = reinterpret_cast<FlexLayoutManager *>(layout);
     if (NULL == layoutManager)
@@ -316,7 +356,7 @@ extern "C" JNIEXPORT jintArray JNICALL
     }
 
     LayoutItem layoutItem;
-    bool found = layoutManager->getItem(position, layoutItem);
+    bool found = layoutManager->getItem(page, position, layoutItem);
     if (found)
     {
         // return

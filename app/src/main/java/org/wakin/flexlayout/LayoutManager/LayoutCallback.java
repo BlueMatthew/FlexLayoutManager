@@ -23,7 +23,12 @@ public interface LayoutCallback {
 
     int getInfoForItemsBatchly(int section, int itemStart, int itemCount, int[] data);
 
-    // int getPageSize();
+    int getPage();
+    int getNumberOfPages();
+    int getNumberOfFixedSections();
+    int getNumberOfSectionsForPage(int page);
+    int[] getPendingPages();
+    Point getContentOffsetForPage(int page);
 
     void onItemEnterStickyMode(int section, int item, int position, Point point);
     void onItemExitStickyMode(int section, int item, int position);

@@ -82,6 +82,7 @@ public:
     bool isVertical() const;
     int getNumberOfSections() const;
 
+    int getPositionForSection(int section) const;
     int getNumberOfItemsInSection(int section) const;
     int getNumberOfColumnsForSection(int section) const;
     Insets getInsetForSection(int section) const;
@@ -96,7 +97,11 @@ public:
     int getLayoutModeForSection(int section) const;
 
 
-    // int getPageSize();
+    int getPage() const;
+    int getNumberOfPages() const;
+    void getPageSections(int page, std::vector<int> &pageSections) const;
+    int getNumberOfFixedSections() const;
+    int getNumberOfSectionsForPage(int page) const;
 
 };
 

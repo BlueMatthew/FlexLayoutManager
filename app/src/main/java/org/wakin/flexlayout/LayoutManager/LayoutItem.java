@@ -8,6 +8,7 @@ import java.util.List;
 
 public class LayoutItem implements Comparable<LayoutItem> {
 
+    private int mPage;
     private int mSection;
     private int mItem;
     private int mPosition = 0;
@@ -21,6 +22,11 @@ public class LayoutItem implements Comparable<LayoutItem> {
     }
 
     public LayoutItem(int section, int item, int position) {
+        this(0, section, item, position);
+    }
+
+    public LayoutItem(int page, int section, int item, int position) {
+        mPage = page;
         mSection = section;
         mItem = item;
         mPosition = position;
@@ -30,6 +36,7 @@ public class LayoutItem implements Comparable<LayoutItem> {
     }
 
     public LayoutItem(FlexItem item) {
+        mPage = 0;
         mSection = item.getSection();
         mItem = item.getItem();
         mInSticky = false;
@@ -40,6 +47,11 @@ public class LayoutItem implements Comparable<LayoutItem> {
     }
 
     public LayoutItem(int section, int item, int position, int inSticky, int originChanged, int left, int top, int right, int bottom) {
+        this(0, section, item, position, inSticky, originChanged, left, top, right, bottom);
+    }
+
+    public LayoutItem(int page, int section, int item, int position, int inSticky, int originChanged, int left, int top, int right, int bottom) {
+        mPage = page;
         mSection = section;
         mItem = item;
         mPosition = position;
@@ -49,8 +61,14 @@ public class LayoutItem implements Comparable<LayoutItem> {
     }
 
     public LayoutItem(int section, int item, int position, int inSticky, int originChanged, Rect frame) {
-        this(section, item, position, inSticky, originChanged, frame.left, frame.top, frame.right, frame.bottom);
+        this(0, section, item, position, inSticky, originChanged, frame.left, frame.top, frame.right, frame.bottom);
     }
+
+    public LayoutItem(int page, int section, int item, int position, int inSticky, int originChanged, Rect frame) {
+        this(page, section, item, position, inSticky, originChanged, frame.left, frame.top, frame.right, frame.bottom);
+    }
+
+    public int getPage() { return mPage; }
 
     public int getSection() {
         return mSection;

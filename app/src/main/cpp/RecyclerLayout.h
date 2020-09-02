@@ -102,17 +102,20 @@ protected:
 
 public:
     RecyclerLayoutItemT() : TBase(), m_position(0) {}
-    RecyclerLayoutItemT(TInt s, TInt i) : TBase(s, i), m_position(0) {}
-    RecyclerLayoutItemT(TInt s, TInt i,const Rect &f) : TBase(s, i, f), m_position(0) {}
-    RecyclerLayoutItemT(TInt s, TInt i, TInt position, const Rect &f) : TBase(s, i, f), m_position(position) {}
-    RecyclerLayoutItemT(TInt section, const FlexItem &src) : TBase(section, src), m_position(0) {}
+    // RecyclerLayoutItemT(TInt s, TInt i) : TBase(s, i), m_position(0) {}
+    RecyclerLayoutItemT(TInt page, TInt s, TInt i,const Rect &f) : TBase(page, s, i, f), m_position(0) {}
+    RecyclerLayoutItemT(TInt page, TInt s, TInt i, TInt position, const Rect &f) : TBase(page, s, i, f), m_position(position) {}
+    RecyclerLayoutItemT(TInt page, TInt section, const FlexItem &src) : TBase(page, section, src), m_position(0) {}
     RecyclerLayoutItemT(const RecyclerLayoutItemT &src) : TBase(src), m_position(src.m_position) {}
     RecyclerLayoutItemT(const RecyclerLayoutItemT *src) : TBase(src), m_position(src->m_position) {}
+
+    template<class TSection>
+    RecyclerLayoutItemT(TInt page, const TSection &section, const FlexItem &src) : TBase(page, section, src), m_position(section.getPositionBase() + src.getItem()) {}
 
     template <class TStickySectionItem>
     inline static RecyclerLayoutItemT makeLayoutItem(const TStickySectionItem &stickySectionItem, const Rect &rect)
     {
-        return RecyclerLayoutItemT(stickySectionItem.getSection(), stickySectionItem.getItem(), stickySectionItem.getPosition(), rect);
+        return RecyclerLayoutItemT(0, stickySectionItem.getSection(), stickySectionItem.getItem(), stickySectionItem.getPosition(), rect);
     }
 
     RecyclerLayoutItemT& operator=(const RecyclerLayoutItemT &other)
@@ -132,9 +135,9 @@ public:
         m_position = position;
     }
 
-    void reset(TInt section, TInt item, TInt position, const Rect &frame, bool inSticky, bool originChanged)
+    void reset(TInt page, TInt section, TInt item, TInt position, const Rect &frame, bool inSticky, bool originChanged)
     {
-        TBase::reset(section, item, frame, inSticky, originChanged);
+        TBase::reset(page, section, item, frame, inSticky, originChanged);
         m_position = position;
     }
 
@@ -155,9 +158,9 @@ public:
 };
 
 template <class TLayoutItem>
-inline TLayoutItem makeLayoutItem(const RecyclerSectionItemT<int, (char)(TLayoutItem::FlexItem::ITEM_TYPE_ITEM)> &stickySectionItem, const typename TLayoutItem::Rect &rect)
+inline TLayoutItem makeLayoutItem(typename TLayoutItem::TInt page, const RecyclerSectionItemT<int, (char)(TLayoutItem::FlexItem::ITEM_TYPE_ITEM)> &stickySectionItem, const typename TLayoutItem::Rect &rect)
 {
-    return TLayoutItem(stickySectionItem.getSection(), stickySectionItem.getItem(), rect, stickySectionItem.getPosition());
+    return TLayoutItem(page, stickySectionItem.getSection(), stickySectionItem.getItem(), rect, stickySectionItem.getPosition());
 }
 
 template<class TLayoutCallbackAdapter, class TSectionBase, bool VERTICAL>
@@ -201,19 +204,25 @@ public:
 
 public:
 
+    RecyclerLayoutT() : TBase()
+    {
+    }
+
+    RecyclerLayoutT(TInt page) : TBase(page)
+    {
+    }
+
     void prepareLayout(const TLayoutCallbackAdapter& layoutCallbackAdapter, const Size &boundSize, const Insets &padding)
     {
         TBase::prepareLayout(layoutCallbackAdapter, boundSize, padding);
 
-        TInt positionBase = 0;
         for (SectionIterator it = TBase::m_sections.begin(); it != TBase::m_sections.end(); ++it)
         {
-            (*it)->setPositionBase(positionBase);
-            positionBase += (*it)->getItemCount();
+            (*it)->setPositionBase(layoutCallbackAdapter.getPositionForSection((*it)->getSection()));
         }
     }
 
-    virtual void adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
+    virtual bool adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
     {
         Section *section = TBase::m_sections[sectionIndex];
         // offset(rect, left(section->getFrame()) - x(contentOffset), top(section->getFrame()) - y(contentOffset));
@@ -242,19 +251,28 @@ public:
                                (bottom(frameItems) - height(rect))));
                                */
         }
+
+        if (sectionIndex == 4)
+        {
+            LOGI("DBG: new Y=%d, originY= %d totalStickyItemSize=%d, contentOffset=%d", top(rect), y(origin), totalStickyItemSize, y(contentOffset));
+        }
+
+        return top(rect) >= y(origin) && top(rect) == totalStickyItemSize;
+        // return top(rect) > y(origin);
     }
 
     // LayoutItem::data == 1, indicates that the item is sticky
     template <class TLayoutItem, class TStickyItem>
-    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset) const
+    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size, const Size &contentSize, const Insets &padding, const Point &contentOffset, TCoordinate pagingOffset, TInt fixedSection, TInt currentPage) const
     {
-        TBase::getItemsInRect(items, changingStickyItems, stickyItems, stackedStickyItems, rect, size, contentSize, padding, contentOffset);
+        TInt orgSize = items.size();
+        TBase::getItemsInRect(items, changingStickyItems, stickyItems, stackedStickyItems, rect, size, contentSize, padding, contentOffset, pagingOffset, fixedSection, currentPage);
 
-        for (typename std::vector<TLayoutItem>::iterator it = items.begin(); it != items.end(); ++it)
+        for (typename std::vector<TLayoutItem>::iterator it = items.begin() + orgSize; it != items.end(); ++it)
         {
-            Section *section = TBase::m_sections[it->getSection()];
+            // Section *section = TBase::m_sections[it->getSection()];
             offset(it->getFrame(), left(padding), top(padding));
-            it->setPosition(section->getPositionBase() + it->getItem());
+            // it->setPosition(section->getPositionBase() + it->getItem());
         }
     }
 
@@ -345,7 +363,7 @@ public:
 
         // layoutItem = *it;
         Rect rect = (*it)->getItemFrameInView(itemIndex);
-        layoutItem.reset((*it)->getSection(), itemIndex, position, rect, false, false);
+        layoutItem.reset(TBase::m_page, (*it)->getSection(), itemIndex, position, rect, false, false);
         // layoutItem.setPosition(position);
 
         return true;

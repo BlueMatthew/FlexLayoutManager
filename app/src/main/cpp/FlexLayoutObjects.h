@@ -28,22 +28,24 @@ using StickyItem = StickyItemT<StickySectionItem, StickyItemState>;
 struct SectionInfo
 {
     int section;    // For incremental update
-    int layoutMode;
+    int position;
     Insets padding;
     int numberOfItems;
     int numberOfColumns;
+    int layoutMode;
     int lineSpacing;
     int interitemSpacing;
     int hasFixedItemSize;
     Size fixedItemSize;
 
-    SectionInfo() : section(0), layoutMode(0), numberOfItems(0), numberOfColumns(0), lineSpacing(0), interitemSpacing(0), hasFixedItemSize(0)
+
+    SectionInfo() : section(0), position(0), numberOfItems(0), numberOfColumns(0), layoutMode(0), lineSpacing(0), interitemSpacing(0), hasFixedItemSize(0)
     {
     }
 
     static int numberOfInts()
     {
-        return 13;
+        return 14;
     }
 
     inline int readFromBuffer(int* buffer, int bufferLength)
@@ -55,6 +57,7 @@ struct SectionInfo
 
         int offset = 0;
         section = buffer[offset++];
+        position = buffer[offset++];
         layoutMode = buffer[offset++];
 
         padding.left = buffer[offset++];
@@ -83,13 +86,20 @@ struct LayoutInfo {
     Size contentSize;
     Point contentOffset;
 
+    int page;
+    int numberOfPages;
+    int numberOfFixedSections;
+    std::vector<int> numberOfPageSections;
+    int numberOfPendingPages;
+    std::vector<int> pendingPages;
+
     LayoutInfo() : orientation(1)
     {
     }
 
     static int numberOfInts()
     {
-        return 9; //1 + 2 + 4 + 2
+        return 14; //1 + 2 + 4 + 2 + 2 + 1 + 1 + 1 + numberOfPages
     }
 
     inline int readFromBuffer(int* buffer, int bufferLength)
@@ -109,6 +119,60 @@ struct LayoutInfo {
         padding.bottom = buffer[offset++];
         contentOffset.x = buffer[offset++];
         contentOffset.y = buffer[offset++];
+
+        page = buffer[offset++];
+        numberOfPages = buffer[offset++];
+        numberOfFixedSections = buffer[offset++];
+        numberOfPageSections.clear();
+        if (numberOfPages > 0)
+        {
+            if (bufferLength - offset < numberOfPages)
+            {
+                return 0;
+            }
+
+            numberOfPageSections.reserve(numberOfPages);
+            for (int pageIndex = 0; pageIndex < numberOfPages; pageIndex++)
+            {
+                int val = buffer[offset++];
+                numberOfPageSections.push_back(val);
+            }
+        }
+
+        numberOfPendingPages = buffer[offset++];
+        pendingPages.clear();
+        if (numberOfPendingPages > 0)
+        {
+            if (bufferLength - offset < numberOfPendingPages)
+            {
+                return 0;
+            }
+
+            std::vector<int> pages;
+            pages.reserve(numberOfPendingPages);
+            for (int pageIndex = 0; pageIndex < numberOfPendingPages; pageIndex++)
+            {
+                int val = buffer[offset++];
+                pages.push_back(val);
+            }
+
+            pendingPages.reserve(numberOfPendingPages);
+            for (std::vector<int>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            {
+                if (*it == page)
+                {
+                    pendingPages.push_back(page);
+                    break;
+                }
+            }
+            for (std::vector<int>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            {
+                if (*it != page)
+                {
+                    pendingPages.push_back(page);
+                }
+            }
+        }
 
         return offset;
     }
@@ -147,6 +211,11 @@ struct LayoutAndSectionsInfo : public LayoutInfo
         }
         offset += intsRead;
 
+        if (bufferLength - offset < 2)
+        {
+            return offset;
+        }
+
         numberOfSections = buffer[offset++];
         sectionStart = buffer[offset++];
         if (numberOfSections <= 0)
@@ -171,6 +240,94 @@ struct LayoutAndSectionsInfo : public LayoutInfo
 
 };
 
+struct DisplayInfo {
+    int orientation;
+    Size size;
+    Insets padding;
+    Size contentSize;
+    Point contentOffset;
+
+    int page;
+    int numberOfPages;
+    int numberOfFixedSections;
+    std::vector<int> numberOfPageSections;
+    int numberOfPendingPages;
+    std::vector<std::pair<int, Point>> pendingPages;
+    int pagingOffset;
+
+    DisplayInfo() : orientation(1)
+    {
+    }
+
+    static int numberOfInts()
+    {
+        return 14; //1 + 2 + 4 + 2 + 2 + 1 + 1 + 1 + numberOfPages
+    }
+
+    inline int readFromBuffer(int* buffer, int bufferLength)
+    {
+        if (bufferLength < numberOfInts())
+        {
+            return 0;
+        }
+
+        int offset = 0;
+        orientation = buffer[offset++];
+        size.width = buffer[offset++];
+        size.height = buffer[offset++];
+        padding.left = buffer[offset++];
+        padding.top = buffer[offset++];
+        padding.right = buffer[offset++];
+        padding.bottom = buffer[offset++];
+        contentOffset.x = buffer[offset++];
+        contentOffset.y = buffer[offset++];
+
+        page = buffer[offset++];
+        numberOfPages = buffer[offset++];
+        numberOfFixedSections = buffer[offset++];
+        numberOfPageSections.clear();
+        if (numberOfPages > 0)
+        {
+            if (bufferLength - offset < numberOfPages)
+            {
+                return 0;
+            }
+
+            numberOfPageSections.reserve(numberOfPages);
+            for (int pageIndex = 0; pageIndex < numberOfPages; pageIndex++)
+            {
+                int val = buffer[offset++];
+                numberOfPageSections.push_back(val);
+            }
+        }
+
+        pagingOffset = buffer[offset++];
+        numberOfPendingPages = buffer[offset++];
+        pendingPages.clear();
+        if (numberOfPendingPages > 0)
+        {
+            if (bufferLength - offset < numberOfPendingPages)
+            {
+                return 0;
+            }
+
+            pendingPages.reserve(numberOfPendingPages);
+            Point contentOffset;
+            for (int pageIndex = 0; pageIndex < numberOfPendingPages; pageIndex++)
+            {
+                int val = buffer[offset++];
+                contentOffset.x = buffer[offset++];
+                contentOffset.y = buffer[offset++];
+                pendingPages.push_back(std::make_pair(val, contentOffset));
+            }
+        }
+
+
+
+        return offset;
+    }
+};
+
 template<typename T>
 inline void writeToBuffer(std::vector<int> &buffer, const T &t)
 {
@@ -188,6 +345,7 @@ inline void writeToBuffer(std::vector<int> &buffer, const Rect &rect)
 template<>
 inline void writeToBuffer(std::vector<int> &buffer, const LayoutItem &layoutItem)
 {
+    buffer.push_back(layoutItem.getPage());
     buffer.push_back(layoutItem.getSection());
     buffer.push_back(layoutItem.getItem());
     buffer.push_back(layoutItem.getPosition());

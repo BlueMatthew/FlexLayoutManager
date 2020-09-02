@@ -30,10 +30,15 @@ public:
     using VerticalLayout = RecyclerLayoutT<LayoutCallbackAdapter, Section<true>, true>;
     using HorizontalLayout = RecyclerLayoutT<LayoutCallbackAdapter, Section<false>, false>;
 
+    using VerticalLayoutIterator = typename std::vector<VerticalLayout *>::iterator;
+    using HorizontalLayoutIterator = typename std::vector<HorizontalLayout *>::iterator;
+    using VerticalLayoutConstIterator = typename std::vector<VerticalLayout *>::const_iterator;
+    using HorizontalLayoutConstIterator = typename std::vector<HorizontalLayout *>::const_iterator;
+
 protected:
     int m_orientation;
-    VerticalLayout *m_verticalLayout;
-    HorizontalLayout *m_horizontalLayout;
+    std::vector<VerticalLayout *> m_verticalLayout;
+    std::vector<HorizontalLayout *> m_horizontalLayout;
 
     // As layout will be recreated once orientation is changed. But sticky items info won't.
     // We put sticky items info in the LayoutManager to avoid being destroyed.
@@ -78,12 +83,65 @@ public:
         return VERTICAL == m_orientation;
     }
 
-    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, const LayoutAndSectionsInfo &layoutAndSectionsInfo);
+    Size prepareLayout(const LayoutCallbackAdapter& layoutCallbackAdapter, int pageStart, int pageCount, const LayoutAndSectionsInfo &layoutAndSectionsInfo);
     void updateItems(int action, int itemStart, int itemCount);
-    void getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const LayoutInfo &layoutInfo) const;
+    void getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const DisplayInfo &displayInfo) const;
     int computerContentOffsetToMakePositionTopVisible(const LayoutInfo &layoutInfo, int position, int positionOffset) const;
-    bool getItem(int position, LayoutItem &layoutItem) const;
+    bool getItem(int page, int position, LayoutItem &layoutItem) const;
 
+
+protected:
+    inline void cleanVerticalLayouts()
+    {
+        if (!m_verticalLayout.empty())
+        {
+            for (VerticalLayoutIterator it = m_verticalLayout.begin(); it != m_verticalLayout.end(); delete *it, ++it);
+            m_verticalLayout.clear();
+        }
+    }
+
+    inline void cleanHorizontalLayouts()
+    {
+        if (!m_horizontalLayout.empty())
+        {
+            for (HorizontalLayoutIterator it = m_horizontalLayout.begin(); it != m_horizontalLayout.end(); delete *it, ++it);
+            m_horizontalLayout.clear();
+        }
+    }
+
+    inline void buildVerticalLayouts(int numberOfPages)
+    {
+        if (numberOfPages > m_verticalLayout.size())
+        {
+            for (int page = m_verticalLayout.size(); page < numberOfPages; ++page)
+            {
+                m_verticalLayout.push_back(new VerticalLayout(page));
+            }
+        }
+        else if (numberOfPages < m_horizontalLayout.size())
+        {
+            VerticalLayoutIterator itStart = m_verticalLayout.begin() + numberOfPages;
+            for (VerticalLayoutIterator it = itStart; it != m_verticalLayout.end(); delete *it, ++it);
+            m_verticalLayout.erase(itStart, m_verticalLayout.end());
+        }
+    }
+
+    inline void buildHorizontalLayouts(int numberOfPages)
+    {
+        if (numberOfPages > m_horizontalLayout.size())
+        {
+            for (int page = m_horizontalLayout.size(); page < numberOfPages; ++page)
+            {
+                m_horizontalLayout.push_back(new HorizontalLayout(page));
+            }
+        }
+        else if (numberOfPages < m_horizontalLayout.size())
+        {
+            HorizontalLayoutIterator itStart = m_horizontalLayout.begin() + numberOfPages;
+            for (HorizontalLayoutIterator it = itStart; it != m_horizontalLayout.end(); delete *it, ++it);
+            m_horizontalLayout.erase(itStart, m_horizontalLayout.end());
+        }
+    }
 };
 
 
