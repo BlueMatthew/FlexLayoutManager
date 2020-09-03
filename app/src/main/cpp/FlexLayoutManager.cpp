@@ -127,7 +127,19 @@ void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, StickyIte
             layout->getItemsInRect(pageItems, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize,
                     displayInfo.padding, itPage->first == displayInfo.page ? displayInfo.contentOffset : itPage->second, pagingOffset, displayInfo.numberOfFixedSections, displayInfo.page);
 
-            items.insert(items.end(), pageItems.cbegin(), pageItems.cend());
+            if (!pageItems.empty())
+            {
+                if (items.empty())
+                {
+                    items.swap(pageItems);
+                }
+                else
+                {
+                    std::vector<LayoutItem>::const_iterator itItem = std::lower_bound(items.cbegin(), items.cend(), pageItems.front());
+                    items.insert(itItem, pageItems.cbegin(), pageItems.cend());
+                }
+            }
+
         }
     }
     else

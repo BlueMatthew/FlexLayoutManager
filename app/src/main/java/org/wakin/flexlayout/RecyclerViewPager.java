@@ -26,8 +26,15 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PagerHelper extends RecyclerView.ItemDecoration
+public class RecyclerViewPager extends RecyclerView.ItemDecoration
         implements RecyclerView.OnChildAttachStateChangeListener {
+
+    /**
+     * Up direction, used for swipe & drag control.
+     */
+    public static final int VERTICAL = RecyclerView.VERTICAL;
+    public static final int HORIZONTAL = RecyclerView.HORIZONTAL;
+
     /**
      * Up direction, used for swipe & drag control.
      */
@@ -351,7 +358,7 @@ public class PagerHelper extends RecyclerView.ItemDecoration
      *
      * @param callback The Callback which controls the behavior of this touch helper.
      */
-    public PagerHelper(@NonNull Callback callback, int resIdPaging) {
+    public RecyclerViewPager(@NonNull Callback callback, int resIdPaging) {
         mCallback = callback;
         mResIdPaging = resIdPaging;
     }
@@ -1156,7 +1163,7 @@ public class PagerHelper extends RecyclerView.ItemDecoration
     }
     /**
      * An interface which can be implemented by LayoutManager for better integration with
-     * {@link PagerHelper}.
+     * {@link RecyclerViewPager}.
      */
     public interface ViewDropHandler {
         void prepareForDrop(@NonNull View view, @NonNull View target, int x, int y);
@@ -1461,11 +1468,11 @@ public class PagerHelper extends RecyclerView.ItemDecoration
         }
 
         void onDraw(Canvas c, RecyclerView parent, ViewHolder selected,
-                    List<PagerHelper.RecoverAnimation> recoverAnimationList,
+                    List<RecyclerViewPager.RecoverAnimation> recoverAnimationList,
                     int actionState, float dX, float dY) {
             final int recoverAnimSize = recoverAnimationList.size();
             for (int i = 0; i < recoverAnimSize; i++) {
-                final PagerHelper.RecoverAnimation anim = recoverAnimationList.get(i);
+                final RecyclerViewPager.RecoverAnimation anim = recoverAnimationList.get(i);
                 anim.update();
                 final int count = c.save();
                 onChildDraw(c, parent, anim.mViewHolder, anim.mX, anim.mY, anim.mActionState,
@@ -1486,11 +1493,11 @@ public class PagerHelper extends RecyclerView.ItemDecoration
             }
         }
         void onDrawOver(Canvas c, RecyclerView parent, ViewHolder selected,
-                        List<PagerHelper.RecoverAnimation> recoverAnimationList,
+                        List<RecyclerViewPager.RecoverAnimation> recoverAnimationList,
                         int actionState, float dX, float dY) {
             final int recoverAnimSize = recoverAnimationList.size();
             for (int i = 0; i < recoverAnimSize; i++) {
-                final PagerHelper.RecoverAnimation anim = recoverAnimationList.get(i);
+                final RecyclerViewPager.RecoverAnimation anim = recoverAnimationList.get(i);
                 final int count = c.save();
                 onChildDrawOver(c, parent, anim.mViewHolder, anim.mX, anim.mY, anim.mActionState,
                         false);

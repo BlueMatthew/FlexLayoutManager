@@ -579,9 +579,6 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                     // Sticky
                     visibleStickyItems.put(layoutItem, childView);
 
-                    // detachView(childView);
-                    // removed++;
-
                     // Then remove it from visible list if it is in it
                     if (itemIndex >= 0) {
                         // visibleItems.remove(itemIndex);

@@ -222,7 +222,7 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
      * Callback for when long press occurs.
      */
     private ItemTouchHelperGestureListener mItemTouchHelperGestureListener;
-    private final RecyclerView.OnItemTouchListener mOnItemTouchListener = new OnItemTouchListener() {
+    private final OnItemTouchListener mOnItemTouchListener = new OnItemTouchListener() {
         @Override
         public boolean onInterceptTouchEvent(@NonNull RecyclerView recyclerView,
                                              @NonNull MotionEvent event) {
@@ -247,6 +247,18 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
                         }
                         select(animation.mViewHolder, animation.mActionState);
                         updateDxDy(event, mSelectedFlags, 0);
+                    }
+                }
+
+                if (mSelected == null && mActivePointerId != ACTIVE_POINTER_ID_NONE) {
+                    // in a non scroll orientation, if distance change is above threshold, we
+                    // can select the item
+                    final int index = event.findPointerIndex(mActivePointerId);
+                    if (DEBUG) {
+                        Log.d(TAG, "pointer index " + index);
+                    }
+                    if (index >= 0) {
+                        checkSelectForSwipe(action, event, index);
                     }
                 }
             } else if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
@@ -293,11 +305,7 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
             switch (action) {
                 case MotionEvent.ACTION_MOVE: {
                     // Find the index of the active pointer and fetch its position
-                    Log.i("Flex", "TouchMove: rawX=" + event.getRawX() + " rawY=" + event.getRawY());
-
-
                     if (activePointerIndex >= 0) {
-                        Log.i("Flex", "TouchMove: active x=" + event.getX(activePointerIndex) + " y=" + event.getY(activePointerIndex));
                         updateDxDy(event, mSelectedFlags, activePointerIndex);
                         moveIfNecessary(viewHolder);
                         mRecyclerView.removeCallbacks(mScrollRunnable);
@@ -425,8 +433,16 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
         }
     }
     private void getSelectedDxDy(float[] outPosition) {
-        outPosition[0] = mDx;
-        outPosition[1] = mDy;
+        if ((mSelectedFlags & (LEFT | RIGHT)) != 0) {
+            outPosition[0] = mDx;
+        } else {
+            outPosition[0] = 0;
+        }
+        if ((mSelectedFlags & (UP | DOWN)) != 0) {
+            outPosition[1] = mDy;
+        } else {
+            outPosition[1] = 0;
+        }
         return;
         /*
         if ((mSelectedFlags & (LEFT | RIGHT)) != 0) {
@@ -552,8 +568,8 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
                             // full cleanup will happen on onDrawOver
                         } else {
                             // wait until remove animation is complete.
-                            // mPendingCleanup.add(prevSelected.itemView);
-                            // mIsPendingCleanup = true;
+                            mPendingCleanup.add(prevSelected.itemView);
+                            mIsPendingCleanup = true;
                             if (swipeDir > 0) {
                                 // Animation might be ended by other animators during a layout.
                                 // We defer callback to avoid editing adapter during a layout.

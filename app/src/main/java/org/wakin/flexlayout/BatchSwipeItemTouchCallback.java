@@ -115,7 +115,7 @@ public class BatchSwipeItemTouchCallback extends ItemTouchHelper.Callback {
 
     @Override
     public boolean isLongPressDragEnabled() {
-        return true; // mPagable ?
+        return false; // mPagable ?
     }
 
     @Override

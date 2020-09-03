@@ -311,14 +311,33 @@ struct DisplayInfo {
                 return 0;
             }
 
+            std::vector<std::pair<int, Point>> pages;
+            pages.reserve(numberOfPendingPages);
             pendingPages.reserve(numberOfPendingPages);
+
             Point contentOffset;
             for (int pageIndex = 0; pageIndex < numberOfPendingPages; pageIndex++)
             {
                 int val = buffer[offset++];
                 contentOffset.x = buffer[offset++];
                 contentOffset.y = buffer[offset++];
-                pendingPages.push_back(std::make_pair(val, contentOffset));
+                pages.push_back(std::make_pair(val, contentOffset));
+            }
+
+            for (typename std::vector<std::pair<int, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            {
+                if (it->first == page)
+                {
+                    pendingPages.push_back(*it);
+                    break;
+                }
+            }
+            for (typename std::vector<std::pair<int, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            {
+                if (it->first != page)
+                {
+                    pendingPages.push_back(*it);
+                }
             }
         }
 
