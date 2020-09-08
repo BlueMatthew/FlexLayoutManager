@@ -33,7 +33,7 @@ void LayoutCallbackAdapter::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass
     // env->DeleteLocalRef(layoutManagerClass);
 
     // Methods on LayoutCallback
-    m_itemEnterStickyModeMid = env->GetMethodID(callbackClass, "onItemEnterStickyMode", "(IIILandroid/graphics/Point;)V");
+    m_itemEnterStickyModeMid = env->GetMethodID(callbackClass, "onItemEnterStickyMode", "(IIILandroid/graphics/Rect;)V");
     m_itemExitStickyModeMid = env->GetMethodID(callbackClass, "onItemExitStickyMode", "(III)V");
     m_itemSizeMid = env->GetMethodID(callbackClass, "getSizeForItem", "(IILorg/wakin/flexlayout/LayoutManager/Graphics/Size;)V");
     m_fullSpanMid = env->GetMethodID(callbackClass, "isFullSpanAtItem", "(II)Z");

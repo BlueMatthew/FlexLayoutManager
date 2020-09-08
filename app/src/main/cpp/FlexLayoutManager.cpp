@@ -105,30 +105,72 @@ void FlexLayoutManager::updateItems(int action, int itemStart, int itemCount)
 
 void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, StickyItemList &changingStickyItems, const DisplayInfo &displayInfo) const
 {
-    Rect rect(displayInfo.contentOffset.x, displayInfo.contentOffset.y, displayInfo.size.width, displayInfo.size.height);   // visibleRect
+    Rect rect(displayInfo.contentOffset.x, displayInfo.contentOffset.y, displayInfo.size.width - displayInfo.padding.hsize(), displayInfo.size.height - displayInfo.padding.vsize());   // visibleRect
 
     if (isVertical())
     {
         VerticalLayoutConstIterator itBegin = m_verticalLayout.cbegin();
-        for (std::vector<std::pair<int, Point>>::const_iterator itPage = displayInfo.pendingPages.cbegin(); itPage != displayInfo.pendingPages.cend(); ++itPage)
+        Point pagingOffset(displayInfo.pagingOffset, 0);
+
+        VerticalLayout *layout = *(itBegin + displayInfo.page);
+        layout->getItemsInRect(items, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize,
+                               displayInfo.padding, displayInfo.contentOffset, pagingOffset, displayInfo.numberOfFixedSections, displayInfo.page);
+
+        if (displayInfo.numberOfPendingPages > 1)
         {
-            int pagingOffset = displayInfo.pagingOffset;
-            if (itPage->first != displayInfo.page)
+            int sizeOfFixedSections = 0;
+            if (displayInfo.numberOfFixedSections > 0)
             {
-                pagingOffset += (itPage->first - displayInfo.page) * (displayInfo.size.width);
-                // contentSize = (*it)->getContentSize();
-                // layoutCallbackAdapter.updateContentSize(contentSize.width, contentSize.height);
+                Rect frame;
+                bool found = layout->getSectionFrame(displayInfo.numberOfFixedSections - 1, frame);
+                if (found)
+                {
+                    sizeOfFixedSections = frame.bottom();
+                }
+            }
+            int maxSizeOfFixedItems = 0;
+            for (std::vector<LayoutItem>::const_iterator it = items.cbegin(); it != items.cend(); ++it)
+            {
+                if (it->getSection() >= displayInfo.numberOfFixedSections)
+                {
+                    break;
+                }
+                if (maxSizeOfFixedItems < it->getFrame().bottom())
+                {
+                    // maxBottomOfFixedItems = it->getFrame().bottom();
+                    maxSizeOfFixedItems = it->getFrame().bottom()/* - displayInfo.contentOffset.y*/;
+                }
             }
 
-            LOGI("TouchMove: getItems page=%d, offset=%d width=%d", itPage->first, pagingOffset, displayInfo.size.width);
-            VerticalLayout *layout = *(itBegin + itPage->first);
-            // int sectionsSkiped = (*itPage) != displayInfo.page ? displayInfo.numberOfFixedSections : 0;
-            std::vector<LayoutItem> pageItems;
-            layout->getItemsInRect(pageItems, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize,
-                    displayInfo.padding, itPage->first == displayInfo.page ? displayInfo.contentOffset : itPage->second, pagingOffset, displayInfo.numberOfFixedSections, displayInfo.page);
+            int maxBottomOfFixedItems = maxSizeOfFixedItems + displayInfo.contentOffset.y + displayInfo.padding.top;
+            // pagingOffset.y = maxFixedItemsSize;
+            rect.size.height -= maxSizeOfFixedItems;
 
-            if (!pageItems.empty())
+            for (std::vector<std::pair<int, Point>>::const_iterator itPage = displayInfo.pendingPages.cbegin(); itPage != displayInfo.pendingPages.cend(); ++itPage)
             {
+                if (itPage->first == displayInfo.page) continue;
+                Point contentOffset = displayInfo.contentOffset;
+                if (itPage->second.x == INVALID_OFFSET || itPage->second.y == INVALID_OFFSET)
+                {
+                    contentOffset.y = sizeOfFixedSections - maxSizeOfFixedItems;
+                    rect.origin = displayInfo.contentOffset;
+                }
+                else
+                {
+                    rect.origin = itPage->second;
+                    rect.origin.y += maxSizeOfFixedItems;
+                    contentOffset = itPage->second;
+                }
+
+                pagingOffset.x = displayInfo.pagingOffset + (itPage->first - displayInfo.page) * (displayInfo.size.width);
+
+                // LOGI("TouchMove: getItems page=%d, offset=%d width=%d", itPage->first, pagingOffset, displayInfo.size.width);
+                layout = *(itBegin + itPage->first);
+                std::vector<LayoutItem> pageItems;
+                layout->getItemsInRect(pageItems, changingStickyItems, m_stickyItems, m_stackedStickyItems, rect, displayInfo.size, displayInfo.contentSize,
+                                       displayInfo.padding, contentOffset, pagingOffset, displayInfo.numberOfFixedSections, displayInfo.page);
+
+                if (pageItems.empty()) continue;
                 if (items.empty())
                 {
                     items.swap(pageItems);
@@ -139,7 +181,6 @@ void FlexLayoutManager::getItemsInRect(std::vector<LayoutItem> &items, StickyIte
                     items.insert(itItem, pageItems.cbegin(), pageItems.cend());
                 }
             }
-
         }
     }
     else
@@ -336,7 +377,7 @@ extern "C" JNIEXPORT jintArray JNICALL
     layoutManager->getItemsInRect(items, changingStickyItems, localDisplayInfo);
 
     buffer.clear();
-    buffer.reserve(items.size() * 10 + changingStickyItems.size() * 7 + 2);
+    buffer.reserve(items.size() * 10 + changingStickyItems.size() * 9 + 2);
     buffer.push_back(items.size());
     for (typename std::vector<LayoutItem>::const_iterator it = items.cbegin(); it != items.cend(); ++it)
     {

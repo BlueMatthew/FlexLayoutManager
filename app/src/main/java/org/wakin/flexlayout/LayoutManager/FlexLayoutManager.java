@@ -186,6 +186,11 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         return mContentOffset;
     }
 
+    public void setContentOffset(Point contentOffset) {
+        mContentOffset.set(contentOffset.x, contentOffset.y);
+        requestLayout();
+    }
+
     public void addStickyItem(int section, int item) {
         if (NATIVE) {
             addStickyItem(mNativeLayout, section, item);
@@ -472,10 +477,10 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
     private void offsetLayoutRectToChildViewRect(LayoutItem item, Rect rect) {
         // rect.offset(-mContentOffset.x + getPaddingLeft(), -mContentOffset.y + getPaddingTop());
-        rect.offset(-mContentOffset.x, -mContentOffset.y);
+        // rect.offset(-mContentOffset.x, -mContentOffset.y);
         if (mMinimumPagableSection != NO_POSITION && item.getSection() >= mMinimumPagableSection && (mPagingOffsetX != 0 || mPagingOffsetY != 0)) {
 
-            rect.offset(mPagingOffsetX, mPagingOffsetY);
+            // rect.offset(mPagingOffsetX, mPagingOffsetY);
         }
     }
 
@@ -504,17 +509,18 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             visibleItems = FlexLayoutHelper.unserializeLayoutItemAndStickyItems(data, changingStickyItems);
 
             if (mMaxPageOffset >= mMinPageOffset) {
-                for (LayoutItem layoutItem : visibleItems) {
-                    Log.i("Flex", "visibleItems: page=" + layoutItem.getPage() + " pos=" + layoutItem.getPosition() + " section=" + layoutItem.getSection() +
-                            " item=" + layoutItem.getItem() + " pt=" + layoutItem.getFrame().left + "," + layoutItem.getFrame().top);
+                if (null != visibleItems) {
+                    for (LayoutItem layoutItem : visibleItems) {
+                        Log.i("Flex", "visibleItems: page=" + layoutItem.getPage() + " pos=" + layoutItem.getPosition() + " section=" + layoutItem.getSection() +
+                                " item=" + layoutItem.getItem() + " pt=" + layoutItem.getFrame().left + "," + layoutItem.getFrame().top);
+                    }
                 }
             }
 
             for (LayoutItem layoutItem : changingStickyItems) {
                 if (layoutItem.isInSticky()) {
-                    Point pt = new Point(layoutItem.getFrame().left, layoutItem.getFrame().top);
-                    mLayoutCallback.onItemEnterStickyMode(layoutItem.getSection(), layoutItem.getItem(), layoutItem.getPosition(), pt);
-                    Log.d(TAG, "EnterChange: Enter " + layoutItem.getSection() + " at: " + pt.toString());
+                    mLayoutCallback.onItemEnterStickyMode(layoutItem.getSection(), layoutItem.getItem(), layoutItem.getPosition(), layoutItem.getFrame());
+                    Log.d(TAG, "EnterChange: Enter " + layoutItem.getSection() + " at: " + layoutItem.getFrame().toString());
                 } else {
                     mLayoutCallback.onItemExitStickyMode(layoutItem.getSection(), layoutItem.getItem(), layoutItem.getPosition());
                     Log.d(TAG, "EnterChange Leave " + layoutItem.getSection());

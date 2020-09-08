@@ -243,7 +243,7 @@ public class LayoutImpl {
         Point stickyItemPoint = new Point(layoutManager.getPaddingLeft(), layoutManager.getPaddingTop());
         Rect rect = new Rect();
         Point origin = new Point();
-        Point oldOrigin = new Point();
+        Rect oldOrigin = new Rect();
 
         Iterator it = mStickyItems.entrySet().iterator();
         while (it.hasNext()) {
@@ -265,10 +265,12 @@ public class LayoutImpl {
             int position = item.getAdapterPosition();
 
             item.getFrameOnView(rect);
+
             rect.offset(-contentOffsetX, -contentOffsetY);
             int stickyItemSize = rect.height();
             origin.set(rect.left, rect.top);
-            oldOrigin.set(origin.x, origin.y);
+            oldOrigin.set(rect);
+            // oldOrigin.set(origin.x, origin.y);
 
             if (mStackedStickyItems) {
                 // origin.y = Math.max(mContentOffset.y + stickyItemPoint.y, origin.y);
@@ -287,7 +289,7 @@ public class LayoutImpl {
 
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
-            boolean stickyMode = entry.getValue().booleanValue() ? ((contentOffsetY + layoutManager.getPaddingTop() < oldOrigin.y) ? false : true) : ((rect.top > oldOrigin.y) ? true : false);
+            boolean stickyMode = entry.getValue().booleanValue() ? ((contentOffsetY + layoutManager.getPaddingTop() < oldOrigin.top) ? false : true) : ((rect.top > oldOrigin.top) ? true : false);
 
             if (stickyMode != entry.getValue().booleanValue()) {
                 // Notify caller if changed

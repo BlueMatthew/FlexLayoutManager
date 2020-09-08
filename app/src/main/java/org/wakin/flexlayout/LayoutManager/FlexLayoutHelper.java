@@ -242,7 +242,7 @@ public class FlexLayoutHelper {
 
         rect.set(0, 0, 0, 0);
         for (int index = 0; index < numberOfChangingStickyItems; index++) {
-            if (data.length - offset < 7) {
+            if (data.length - offset < 9) {
                 break;
             }
 
@@ -254,8 +254,8 @@ public class FlexLayoutHelper {
             rect.left = data[offset++];
             rect.top = data[offset++];
 
-            rect.right = rect.left;
-            rect.bottom = rect.top;
+            rect.right = rect.left + data[offset++];
+            rect.bottom = rect.top + data[offset++];
 
             layoutItem = new LayoutItem(section, item, position, inSticky, originChanged, rect);
             changingStickyItems.add(layoutItem);

@@ -1,6 +1,7 @@
 package org.wakin.flexlayout.LayoutManager;
 
 import android.graphics.Point;
+import android.graphics.Rect;
 
 import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
 import org.wakin.flexlayout.LayoutManager.Graphics.Size;
@@ -30,6 +31,6 @@ public interface LayoutCallback {
     int[] getPendingPages();
     Point getContentOffsetForPage(int page);
 
-    void onItemEnterStickyMode(int section, int item, int position, Point point);
+    void onItemEnterStickyMode(int section, int item, int position, Rect frame);
     void onItemExitStickyMode(int section, int item, int position);
 }

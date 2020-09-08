@@ -222,57 +222,29 @@ public:
         }
     }
 
-    virtual bool adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
-    {
-        Section *section = TBase::m_sections[sectionIndex];
-        // offset(rect, left(section->getFrame()) - x(contentOffset), top(section->getFrame()) - y(contentOffset));
-        offset(rect, -x(contentOffset), -y(contentOffset));
-        origin = rect.origin;
-
-        if (stackedStickyItems)
-        {
-            top(rect, std::max(totalStickyItemSize, y(origin)));
-        }
-        else
-        {
-            Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
-            Rect frameItems = makeRect(x(origin), y(origin), right(lastItemInSection), bottom(lastItemInSection));
-            frameItems.offset(section->getFrame().left(), section->getFrame().top());
-            frameItems = section->getItemsFrameInViewAfterItem(itemIndex);
-            top(rect, std::min(std::max(0, (top(frameItems) - y(contentOffset) - height(rect))),
-                               (bottom(frameItems) - y(contentOffset) - height(rect))));
-
-            /*
-            Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
-            // Rect frameItems = makeRect(x(origin), y(origin), right(lastItemInSection), bottom(lastItemInSection));
-            Rect frameItems = makeRect(left(rect), bottom(rect), right(lastItemInSection), bottom(lastItemInSection));
-            frameItems.offset(section->getFrame().left(), section->getFrame().top());
-            top(rect, std::min(std::max(0, (top(frameItems) - height(rect))),
-                               (bottom(frameItems) - height(rect))));
-                               */
-        }
-
-        if (sectionIndex == 4)
-        {
-            LOGI("DBG: new Y=%d, originY= %d totalStickyItemSize=%d, contentOffset=%d", top(rect), y(origin), totalStickyItemSize, y(contentOffset));
-        }
-
-        return top(rect) >= y(origin) && top(rect) == totalStickyItemSize;
-        // return top(rect) > y(origin);
-    }
-
     // LayoutItem::data == 1, indicates that the item is sticky
     template <class TLayoutItem, class TStickyItem>
-    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size, const Size &contentSize, const Insets &padding, const Point &contentOffset, TCoordinate pagingOffset, TInt fixedSection, TInt currentPage) const
+    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size, const Size &contentSize, const Insets &padding, const Point &contentOffset, const Point &pagingOffset, TInt fixedSection, TInt currentPage) const
     {
         TInt orgSize = items.size();
-        TBase::getItemsInRect(items, changingStickyItems, stickyItems, stackedStickyItems, rect, size, contentSize, padding, contentOffset, pagingOffset, fixedSection, currentPage);
+        TInt orgStickyItemsSize = changingStickyItems.size();
+        Insets fakePadding;  // 0, 0, 0, 0
+        TBase::getItemsInRect(items, changingStickyItems, stickyItems, stackedStickyItems, rect, size, contentSize, fakePadding, contentOffset, pagingOffset, fixedSection, currentPage);
 
+        Point offsetItem(padding.left - contentOffset.x, padding.top - contentOffset.y);
         for (typename std::vector<TLayoutItem>::iterator it = items.begin() + orgSize; it != items.end(); ++it)
         {
-            // Section *section = TBase::m_sections[it->getSection()];
-            offset(it->getFrame(), left(padding), top(padding));
-            // it->setPosition(section->getPositionBase() + it->getItem());
+            offset(it->getFrame(), x(offsetItem), y(offsetItem));
+        }
+
+        if (left(padding) != 0 || top(padding) != 0)
+        {
+            for (typename StickyItemList<TStickyItem>::iterator it = changingStickyItems.begin() + orgStickyItemsSize; it != changingStickyItems.end(); ++it)
+            {
+                Rect frame = it->second.getFrame();
+                offset(frame, left(padding), top(padding));
+                // it->second.setFrame(frame);
+            }
         }
     }
 
@@ -283,6 +255,12 @@ public:
         {
             Section *section = TBase::m_sections[it->first.getSection()];
             it->first.setPosition(section->getPositionBase() + it->first.getItem());
+
+            it->second.setFrame(section->getItemFrameInView(it->first.getItem()));
+            // Rect lastItemInSection = section->getItem(section->getItemCount() - 1)->getFrame();
+            // Rect frameItems = makeRect(x(origin), y(origin), right(lastItemInSection), bottom(lastItemInSection));
+            // frameItems.offset(section->getFrame().left(), section->getFrame().top());
+            it->second.setItemsFrame(section->getItemsFrameInViewAfterItem(it->first.getItem()));
         }
     }
 
@@ -326,11 +304,26 @@ public:
             rect = section->getItemFrameInView(it->first.getItem());
             TCoordinate stickyItemSize = height(rect);
 
-            adjustFrameForStickyItem(rect, origin, it->first.getSection(),  it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
+            origin = rect.origin;
+
+            if (stackedStickyItems)
+            {
+                top(rect, std::max(y(contentOffset) + totalStickyItemSize - top(padding), y(origin)));
+            }
+            else
+            {
+                const Rect itemsFrame = it->second.getItemsFrame();
+                top(rect, std::min(std::max(top(padding) + y(contentOffset), (top(itemsFrame) - height(rect))),
+                                   (bottom(itemsFrame) - height(rect))));
+            }
+
+            bool stickyMode = top(rect) >= y(origin) && top(rect) == y(contentOffset) + totalStickyItemSize;
+
+            // adjustFrameForStickyItem(rect, origin, it->first.getSection(),  it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize, it->second.getItemsFrame());
 
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
-            bool stickyMode = top(rect) >= y(origin);
+            // bool stickyMode = top(rect) >= y(origin);
             if (stickyMode)
             {
                 totalStickyItemSize = stackedStickyItems ? (totalStickyItemSize + stickyItemSize) : stickyItemSize;

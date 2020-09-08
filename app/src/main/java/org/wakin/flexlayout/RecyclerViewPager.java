@@ -32,8 +32,8 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     /**
      * Up direction, used for swipe & drag control.
      */
-    public static final int VERTICAL = RecyclerView.VERTICAL;
-    public static final int HORIZONTAL = RecyclerView.HORIZONTAL;
+    public static final int HORIZONTAL = 2 ^ RecyclerView.HORIZONTAL;
+    public static final int VERTICAL = 2 ^ RecyclerView.VERTICAL;
 
     /**
      * Up direction, used for swipe & drag control.
@@ -220,7 +220,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     /**
      * Callback for when long press occurs.
      */
-    private ItemTouchHelperGestureListener mItemTouchHelperGestureListener;
+    private PagerGestureListener mPagerGestureListener;
     private final OnItemTouchListener mOnItemTouchListener = new OnItemTouchListener() {
         @Override
         public boolean onInterceptTouchEvent(@NonNull RecyclerView recyclerView,
@@ -235,21 +235,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                 mInitialTouchX = event.getX();
                 mInitialTouchY = event.getY();
                 obtainVelocityTracker();
-                /*
-                if (mSelected == null) {
-                    final RecoverAnimation animation = findAnimation(event);
-                    if (animation != null) {
-                        mInitialTouchX -= animation.mX;
-                        mInitialTouchY -= animation.mY;
-                        endRecoverAnimation(animation.mViewHolder, true);
-                        if (mPendingCleanup.remove(animation.mViewHolder.itemView)) {
-                            mCallback.clearView(mRecyclerView, animation.mViewHolder);
-                        }
-                        select(animation.mViewHolder, animation.mActionState);
-                        updateDxDy(event, mSelectedFlags, 0);
-                    }
-                }
-                 */
             } else if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
                 mActivePointerId = ACTIVE_POINTER_ID_NONE;
                 select(null, ACTION_STATE_IDLE);
@@ -297,11 +282,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             switch (action) {
                 case MotionEvent.ACTION_MOVE: {
                     // Find the index of the active pointer and fetch its position
-                    Log.i("Flex", "TouchMove: rawX=" + event.getRawX() + " rawY=" + event.getRawY());
-
-
                     if (activePointerIndex >= 0) {
-                        Log.i("Flex", "TouchMove: active x=" + event.getX(activePointerIndex) + " y=" + event.getY(activePointerIndex));
                         updateDxDy(event, mSelectedFlags, activePointerIndex);
                         // moveIfNecessary(viewHolder);
                         mRecyclerView.removeCallbacks(mScrollRunnable);
@@ -415,14 +396,15 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         stopGestureDetection();
     }
     private void startGestureDetection() {
-        mItemTouchHelperGestureListener = new ItemTouchHelperGestureListener();
+        mPagerGestureListener = new PagerGestureListener();
         mGestureDetector = new GestureDetectorCompat(mRecyclerView.getContext(),
-                mItemTouchHelperGestureListener);
+                mPagerGestureListener);
+        mGestureDetector.setIsLongpressEnabled(false);
     }
     private void stopGestureDetection() {
-        if (mItemTouchHelperGestureListener != null) {
-            mItemTouchHelperGestureListener.doNotReactToLongPress();
-            mItemTouchHelperGestureListener = null;
+        if (mPagerGestureListener != null) {
+            mPagerGestureListener.doNotReactToLongPress();
+            mPagerGestureListener = null;
         }
         if (mGestureDetector != null) {
             mGestureDetector = null;
@@ -1584,14 +1566,14 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         }
     }
 
-    private class ItemTouchHelperGestureListener extends GestureDetector.SimpleOnGestureListener {
+    private class PagerGestureListener extends GestureDetector.SimpleOnGestureListener {
 
         private boolean mShouldReactToLongPress = true;
-        ItemTouchHelperGestureListener() {
+        PagerGestureListener() {
         }
         /**
          * Call to prevent executing code in response to
-         * {@link ItemTouchHelperGestureListener#onLongPress(MotionEvent)} being called.
+         * {@link PagerGestureListener#onLongPress(MotionEvent)} being called.
          */
         void doNotReactToLongPress() {
             mShouldReactToLongPress = false;
@@ -1599,6 +1581,18 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         @Override
         public boolean onDown(MotionEvent e) {
             return true;
+        }
+
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2,
+                                float distanceX, float distanceY) {
+            return false;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
+                               float velocityY) {
+            return false;
         }
 
         @Override

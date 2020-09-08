@@ -422,6 +422,7 @@ public class ItemTouchHelper extends RecyclerView.ItemDecoration
         mItemTouchHelperGestureListener = new ItemTouchHelperGestureListener();
         mGestureDetector = new GestureDetectorCompat(mRecyclerView.getContext(),
                 mItemTouchHelperGestureListener);
+        mGestureDetector.setIsLongpressEnabled(false);
     }
     private void stopGestureDetection() {
         if (mItemTouchHelperGestureListener != null) {

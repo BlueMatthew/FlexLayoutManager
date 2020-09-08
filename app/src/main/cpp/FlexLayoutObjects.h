@@ -341,8 +341,6 @@ struct DisplayInfo {
             }
         }
 
-
-
         return offset;
     }
 };
@@ -382,9 +380,7 @@ inline void writeToBuffer(std::vector<int> &buffer, const StickyItem &stickyItem
     buffer.push_back(stickyItem.first.getPosition());
     buffer.push_back(stickyItem.second.isInSticky() ? 1 : 0);
     buffer.push_back(stickyItem.second.isOriginChanged() ? 1 : 0);
-    buffer.push_back(stickyItem.second.getFrame().origin.x);
-    buffer.push_back(stickyItem.second.getFrame().origin.y);
-
+    writeToBuffer(buffer, stickyItem.second.getFrame());
 }
 
 

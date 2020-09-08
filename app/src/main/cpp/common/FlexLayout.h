@@ -349,7 +349,8 @@ public:
     using TBase::top;
     using TBase::bottom;
 
-    using TBase::offsetX;
+    using TBase::offset;
+    // using TBase::offsetX;
     using TBase::offsetY;
 
     using TBase::height;
@@ -528,31 +529,23 @@ public:
         return m_contentSize;
     }
 
-    void updateItems(TInt action, TInt itemStart, TInt itemCount)
+    template <class TStickyItem>
+    void updateStickyItemPosition(StickyItemList<TStickyItem> &stickyItems)
     {
+        for (typename StickyItemList<TStickyItem>::iterator it = stickyItems.begin(); it != stickyItems.end(); ++it)
+        {
+            Section *section = TBase::m_sections[it->first.getSection()];
+#ifdef HAVING_HEADER_AND_FOOTER
+            it->second.setFrame(section->getHeaderFrameInView());
+#else
+            it->second.setFrame(section->getItemFrameInView(it->first.getItem()));
+#endif // #ifdef HAVING_HEADER_AND_FOOTER
+            it->second.setItemsFrame(section->getItemsFrameInView());
+        }
     }
 
-    virtual bool adjustFrameForStickyItem(Rect &rect, Point &origin, TInt sectionIndex, TInt itemIndex, bool stackedStickyItems, const Point &contentOffset, const Insets &padding, TCoordinate totalStickyItemSize) const
+    void updateItems(TInt action, TInt itemStart, TInt itemCount)
     {
-        origin = rect.origin;
-
-        if (stackedStickyItems)
-        {
-            // top(rect, std::max(totalStickyItemSize + top(layoutInfo.padding), y(origin)));
-
-            top(rect, std::max(y(contentOffset) + totalStickyItemSize - top(padding), y(origin)));
-        }
-        else
-        {
-            Rect frameItems = m_sections[sectionIndex]->getItemsFrameInView();
-            top(rect, std::min(std::max(top(padding) + y(contentOffset), (top(frameItems) - height(rect))),
-                               (bottom(frameItems) - height(rect))));
-        }
-
-        return top(rect) >= y(origin) && top(rect) == y(contentOffset) + totalStickyItemSize;
-        // return top(rect) > y(origin);
-        // stickyMode = (layoutAttributes.frame.origin.y >= oldOrigin.y) && (layoutAttributes.frame.origin.y == contentOffset.y + totalHeaderHeight) ? YES : NO;
-        //
     }
 
     template <class TLayoutItem, class TStickyItem>
@@ -594,21 +587,20 @@ public:
             }
 
             TCoordinate stickyItemSize = height(rect);
+            origin = rect.origin;
 
-            bool stickyMode = adjustFrameForStickyItem(rect, origin, it->first.getSection(), it->first.getItem(), stackedStickyItems, contentOffset, padding, totalStickyItemSize);
-            /*
             if (stackedStickyItems)
             {
                 top(rect, std::max(y(contentOffset) + totalStickyItemSize - top(padding), y(origin)));
             }
             else
             {
-                Rect frameItems = m_sections[it->first.getSection()]->getItemsFrameInView();
-                top(rect, std::min(std::max(top(padding) + y(contentOffset), (top(frameItems) - height(rect))),
-                                   (bottom(frameItems) - height(rect))));
+                const Rect itemsFrame = it->second.getItemsFrame();
+                top(rect, std::min(std::max(top(padding) + y(contentOffset), (top(itemsFrame) - height(rect))),
+                                   (bottom(itemsFrame) - height(rect))));
             }
-             */
 
+            bool stickyMode = top(rect) >= y(origin) && top(rect) == y(contentOffset) + totalStickyItemSize;
             // If original mode is sticky, we check contentOffset and if contentOffset.y is less than origin.y, it is exiting sticky mode
             // Otherwise, we check the top of sticky header
             // stickyMode = (layoutAttributes.frame.origin.y >= oldOrigin.y) && (layoutAttributes.frame.origin.y == contentOffset.y + totalHeaderHeight) ? YES : NO;
@@ -653,7 +645,7 @@ public:
 
     // LayoutItem::data == 1, indicates that the item is sticky
     template <class TLayoutItem, class TStickyItem>
-    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset, TCoordinate pagingOffset, TInt fixedSection, TInt currentPage) const
+    void getItemsInRect(std::vector<TLayoutItem> &items, StickyItemList<TStickyItem> &changingStickyItems, StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Rect &rect, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset, const Point &pagingOffset, TInt fixedSection, TInt currentPage) const
     {
         if (fixedSection >= m_sections.size())
         {
@@ -686,7 +678,7 @@ public:
                 layoutItem.getFrame() = (*it)->getItemFrameInView(*itItem);
                 if (m_page != currentPage || (*it)->getSection() >= fixedSection)
                 {
-                    offsetX(layoutItem.getFrame(), pagingOffset);
+                    offset(layoutItem.getFrame(), pagingOffset.x, pagingOffset.y);
                 }
 
                 items.push_back(layoutItem);
@@ -699,6 +691,18 @@ public:
         {
             getStickyItems(items, changingStickyItems, stickyItems, stackedStickyItems, range, contentOffset, padding);
         }
+    }
+
+    bool getSectionFrame(TInt sectionIndex, Rect &frame) const
+    {
+        if (sectionIndex >= m_sections.size())
+        {
+            return false;
+        }
+        Section *section = m_sections[sectionIndex];
+
+        frame = section->getFrame();
+        return true;
     }
 
     bool getItemFrame(TInt sectionIndex, TInt itemIndex, Rect &frame) const
