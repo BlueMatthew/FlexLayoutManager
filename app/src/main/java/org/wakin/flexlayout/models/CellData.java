@@ -21,5 +21,23 @@ public class CellData {
 
     public String imageUrl;
 
-    public boolean displayed = false;
+    public long firstDisplayTime = 0;
+    public long loadingTime = 0;
+
+    public void startLoading() {
+        if (firstDisplayTime == 0) {
+            firstDisplayTime = System.currentTimeMillis();
+            loadingTime = 300 + (int)(Math.random() * 1500);
+        }
+    }
+
+    public boolean isLoaded() {
+        return firstDisplayTime > 0 && System.currentTimeMillis() - firstDisplayTime > loadingTime;
+    }
+
+    public long getRemainingLoadingTime() {
+        long ts = System.currentTimeMillis() - firstDisplayTime;
+        return ts < loadingTime ? (loadingTime - ts) : 0;
+    }
+
 }

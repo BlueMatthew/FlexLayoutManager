@@ -77,9 +77,11 @@ public class CategoryBarView extends ViewGroup {
             mImageView.loadUrl(cellData.imageUrl);
         } else {
             if (cellData.imageBackgroundColor != 0) {
-                if (!cellData.displayed) {
+                if (!cellData.isLoaded()) {
                     // first display
-                    setImageViewColorDelayed(cellData.imageBackgroundColor, cellData.backgroundColor);
+                    cellData.startLoading();
+
+                    setImageViewColorDelayed(cellData.imageBackgroundColor, cellData.backgroundColor, cellData.getRemainingLoadingTime());
                 } else {
                     mImageView.setBackgroundColor(cellData.imageBackgroundColor);
                     mLoadingView.setText("I'm an image");
@@ -89,14 +91,13 @@ public class CategoryBarView extends ViewGroup {
         }
     }
 
-    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor) {
+    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor, long delayedTime) {
         final int updateId = mUpdateId;
 
         setViewBorder(mImageView, imageColor);
         mLoadingView.setText("Loading...");
         mLoadingView.setTextColor(reverseColor(backgroundColor));
 
-        int delayedTime = 300 + (int)(Math.random() * 1500);
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override

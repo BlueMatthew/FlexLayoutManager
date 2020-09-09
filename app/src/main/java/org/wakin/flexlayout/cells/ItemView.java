@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -61,6 +62,8 @@ public class ItemView extends ViewGroup {
 
         mUpdateId++;
 
+        Log.i("Flex", "Start loading cell: " + cellData.text);
+
         setBackgroundColor(cellData.backgroundColor);
 
        // setViewBorderColor(holder.itemView, getItemForegroundColor(item + getCatIndex()));
@@ -77,9 +80,10 @@ public class ItemView extends ViewGroup {
             mImageView.loadUrl(cellData.imageUrl);
         } else {
             if (cellData.imageBackgroundColor != 0) {
-                if (!cellData.displayed) {
+                if (!cellData.isLoaded()) {
                     // first display
-                    setImageViewColorDelayed(cellData.imageBackgroundColor, cellData.backgroundColor);
+                    cellData.startLoading();
+                    setImageViewColorDelayed(cellData.imageBackgroundColor, cellData.backgroundColor, cellData.getRemainingLoadingTime());
                 } else {
                     mImageView.setBackgroundColor(cellData.imageBackgroundColor);
                     mLoadingView.setText("I'm an image");
@@ -89,14 +93,14 @@ public class ItemView extends ViewGroup {
         }
     }
 
-    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor) {
+    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor, final long delayedTime) {
         final int updateId = mUpdateId;
 
         setViewBorder(mImageView, imageColor);
         mLoadingView.setText("Loading...");
         mLoadingView.setTextColor(reverseColor(backgroundColor));
 
-        int delayedTime = 300 + (int)(Math.random() * 1500);
+        // int delayedTime = 3000 + (int)(Math.random() * 1500);
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override

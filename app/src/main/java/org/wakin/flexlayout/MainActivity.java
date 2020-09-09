@@ -32,18 +32,8 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     private static Object PRELOAD_FLAG = new Object();
     private static Object PRELOAD_FLAG_SWAP = new Object();
 
-    private static class PositionAndOffset {
-        public int position;
-        public int offset;
-
-        public PositionAndOffset(int position, int offset) {
-            this.position = position;
-            this.offset = offset;
-        }
-    }
-
     private boolean mStackedStickyHeaders = true;
-    private FlexRecyclerView mRecyclerView;
+    private RecyclerView mRecyclerView;
     private PaginationAdapter mAdapter;
     BatchSwipeItemTouchCallback mCallback;
     ItemTouchHelper mTouchHelper;
@@ -56,9 +46,8 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     private boolean mIsCatBarStickyMode = false;
     private Rect mNavFrame = new Rect();
     private Rect mStickyItemFrame = new Rect();
-    private int mStickyItemSize = 0;
 
-    private MainActivityDataSource mDataSource;
+    private MainActivityDataSource mDataSource = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,47 +59,16 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
             @Override
             public void onLayoutChange(View view, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
 
-                int width = right - left;
-                int height = bottom - top;
-                int oldWidth = oldRight - oldLeft;
-                int oldHeight = oldBottom - oldTop;
-
-                if (width > 0 && height > 0) {
-
-                    if (mDataSource == null) {
-                        int boundWidth = width - mRecyclerView.getPaddingLeft() - mRecyclerView.getPaddingRight();
-                        int boundHeight = height - mRecyclerView.getPaddingTop() - mRecyclerView.getPaddingBottom();
-
-                        mDataSource = new MainActivityDataSource(mRecyclerView.getContext(), width, height);
-
-                        Log.d(TAG, "onLyaoutChange width=" + width);
-                        // mRecyclerView.requestLayout();
-
-                        mAdapter.notifyDataSetChanged();
-                        // mRecyclerView.swapAdapter(mAdapter, true);
-
-                        final Handler handler = new Handler();
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                // mRecyclerView.smoothScrollToPosition(100);
-                                // mRecyclerView.scrollToPosition(100);
-
-
-                                // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();
-                                // layoutManager.scrollToPositionWithOffset(100, 60);
-                                // layoutManager.scrollToPositionWithOffset(100, -20);
-
-                                // layoutManager.smoothScrollToPosition(100, 60);
-
-                            }
-                        }, 3000);
-
+                final Handler handler = new Handler();
+                final Rect frame = new Rect(left, top, right, bottom);
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        initDataSource(frame);
                     }
-                }
+                }, 100);
             }
         });
-
 
         Log.i("ITH", String.format("onCreate TID=%d", Thread.currentThread().getId()));
 
@@ -119,7 +77,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         mRecyclerView.setAdapter(mAdapter);
 
         // mRecyclerView.setHasFixedSize(true);
-        // mRecyclerView.getRecycledViewPool().setMaxRecycledViews(VIEW_TYPE_ITEM, 5);
         Insets padding = MainActivityDataSource.RECYCLERVIEW_PADDING;
         mRecyclerView.setPadding(padding.left, padding.top, padding.right, padding.bottom);
 
@@ -133,6 +90,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         setFlexLayoutManager();
         // setLinearLayoutManager();
 
+        /*
         mRecyclerView.addOnScrollListener (new RecyclerView.OnScrollListener() {
             int scrollState = RecyclerView.SCROLL_STATE_IDLE;
             public void onScrollStateChanged (RecyclerView recyclerView, int newState) {
@@ -170,6 +128,8 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
             }
         });
 
+
+         */
     }
 
     @Override
@@ -208,71 +168,59 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         mRecyclerView.setLayoutManager(layoutManager);
     }
 
-    protected RecyclerView.LayoutParams buildLayoutParamsForRecyclerView(RecyclerView recyclerView) {
+    protected void initDataSource(Rect frame) {
+        int width = frame.width();
+        int height = frame.height();
 
-        int minPagablePos = mDataSource.getMinPagablePosition();
-        if (RecyclerView.NO_POSITION == minPagablePos) {
-            // ASSERT false
-            return null;
+        if (width > 0 && height > 0) {
+
+            if (mDataSource == null) {
+                int boundWidth = width - mRecyclerView.getPaddingLeft() - mRecyclerView.getPaddingRight();
+                int boundHeight = height - mRecyclerView.getPaddingTop() - mRecyclerView.getPaddingBottom();
+
+                mDataSource = new MainActivityDataSource(mRecyclerView.getContext(), width, height);
+
+                mAdapter.notifyDataSetChanged();
+
+                final Handler handler = new Handler();
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        // mRecyclerView.smoothScrollToPosition(100);
+                        // mRecyclerView.scrollToPosition(100);
+
+                        // FlexLayoutManager layoutManager = (FlexLayoutManager) mRecyclerView.getLayoutManager();
+                        // layoutManager.scrollToPositionWithOffset(100, 60);
+                        // layoutManager.scrollToPositionWithOffset(100, -20);
+
+                        // layoutManager.smoothScrollToPosition(100, 60);
+
+                    }
+                }, 100);
+            }
         }
-
-        // RecyclerView Height - Nav Height - Cat Height
-        int height = recyclerView.getHeight();
-        int posCat = minPagablePos - 1;
-        FlexRecyclerView.SectionViewHolder viewHolderCat = (FlexRecyclerView.SectionViewHolder) mRecyclerView.findViewHolderForAdapterPosition(posCat);
-        if (null == viewHolderCat || null == viewHolderCat.itemView) {
-            height -= 105; // Workaround
-        } else {
-            height -= mRecyclerView.getLayoutManager().getDecoratedMeasuredHeight(viewHolderCat.itemView);
-        }
-
-        FlexRecyclerView.SectionViewHolder viewHolderNav = (FlexRecyclerView.SectionViewHolder) mRecyclerView.findViewHolderForAdapterPosition(0);
-        if (null != viewHolderNav && null != viewHolderNav.itemView) {
-            height -= mRecyclerView.getLayoutManager().getDecoratedMeasuredHeight(viewHolderNav.itemView);
-        }
-
-        RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(recyclerView.getWidth(), height);
-
-        return lp;
     }
 
-    protected PositionAndOffset getStoredPositionAndOffset(int page, boolean mainPage) {
-        return getStoredPositionAndOffset(new Integer(page), mainPage);
+    protected static class FlexViewHolder extends RecyclerView.ViewHolder {
+        public FlexViewHolder(View itemView) {
+            super(itemView);
+        }
     }
 
-    protected PositionAndOffset getStoredPositionAndOffset(Integer page, boolean mainPage) {
-        PositionAndOffset po = null;
-        Bundle bundle = null;
-
-        if (mRecyclerViewStates.containsKey(page)) {
-            bundle = mRecyclerViewStates.get(page);
-        }
-        if (null != bundle) {
-            po = new PositionAndOffset(bundle.getInt(mainPage ? "position" : "pagablePosition"), bundle.getInt(mainPage ? "offset" : "pagableOffset"));
-        }
-
-        return po;
-    }
-
-    class PaginationAdapter extends RecyclerView.Adapter<FlexRecyclerView.SectionViewHolder> implements BatchSwipeItemTouchCallback.RecyclerViewAdapter {
-
+    class PaginationAdapter extends RecyclerView.Adapter<FlexViewHolder> implements BatchSwipeItemTouchCallback.RecyclerViewAdapter {
 
         public PaginationAdapter() {
-
-        }
-
-        public PaginationAdapter(boolean mainAdapter, int catIndex, int baseGroupIndex) {
-            // setCatIndex(catIndex);
         }
 
         @Override
-        public FlexRecyclerView.SectionViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            return mDataSource == null ? null : mDataSource.createViewHolder(parent, viewType);
+        public FlexViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            return mDataSource == null ? null : new FlexViewHolder(mDataSource.createView(parent, viewType));
         }
 
         @Override
-        public void onBindViewHolder(FlexRecyclerView.SectionViewHolder holder, int position, List<Object> payloads) {
+        public void onBindViewHolder(FlexViewHolder holder, int position, List<Object> payloads) {
 
+            // Log.i("Flex", "onBindViewHolder: pos=" + position);
             if (null == payloads || 0 == payloads.size()) {
                 onBindViewHolder(holder, position);
                 return;
@@ -288,12 +236,9 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         }
 
         @Override
-        public void onBindViewHolder(FlexRecyclerView.SectionViewHolder holder, int position) {
+        public void onBindViewHolder(FlexViewHolder holder, int position) {
             int viewType = holder.getItemViewType();
-            // Log.d("PERF", String.format("onBindViewHolder, Main=%d Page=%d, position=%d", mMainAdapter, getCatIndex(), position));
-
-            SectionPosition sectionPosition = mDataSource.toSectionPosition(position);
-            holder.setSectionAndItem(sectionPosition.section, sectionPosition.item);
+            Log.d("PERF", String.format("onBindViewHolder, position=%d", position));
 
             mDataSource.bindCellView(position, holder);
         }
@@ -320,7 +265,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         }
 
         @Override
-        public void onViewAttachedToWindow(FlexRecyclerView.SectionViewHolder holder) {
+        public void onViewAttachedToWindow(FlexViewHolder holder) {
             super.onViewAttachedToWindow(holder);
         }
 
@@ -346,7 +291,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
             int page = mDataSource.getPage();
 
-            // tryToBuildPaginationRecyclerView((initialDirection & ItemTouchHelper.LEFT) != 0, page, pos, mIsCatBarStickyMode);
 
             return null;
         }
@@ -430,10 +374,11 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
                     FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
                     Point contentOffset = flexLayoutManager.getContentOffset();
                     Bundle bundle = new Bundle();
-                    bundle.putParcelable("contentOffset", contentOffset);
+                    bundle.putInt("contentOffsetX", contentOffset.x);
+                    bundle.putInt("contentOffsetY", contentOffset.y);
 
-                    Log.i("ITH", "SaveState for Page:" + Integer.toString(page) + " " + bundle.toString());
                     mRecyclerViewStates.put(new Integer(page), bundle);
+                    Log.i("ITH", "SaveState for Page:" + Integer.toString(page) + " " + bundle.toString());
                 }
 
                 newContentOffset = getContentOffsetForPage(newPage);
@@ -526,12 +471,12 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
     @Override
     public int getPage() {
-        return mDataSource.getPage();
+        return mDataSource == null ? 0 : mDataSource.getPage();
     }
 
     @Override
     public int getNumberOfPages() {
-        return mDataSource.getNumberOfPages();
+        return mDataSource == null ? 1 : mDataSource.getNumberOfPages();
     }
 
     @Override
@@ -545,40 +490,28 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     }
 
     @Override
-    public int[] getPendingPages() {
-        return null;
-    }
-
-    @Override
     public Point getContentOffsetForPage(int page) {
+        Point contentOffset = FlexLayoutManager.INVALID_CONTENT_OFFSET;
         if (mIsCatBarStickyMode && page != mDataSource.getPage()) {
 
             Integer pageInteger = new Integer(page);
             if (mRecyclerViewStates.containsKey(pageInteger)) {
                 Bundle bundle = mRecyclerViewStates.get(pageInteger);
-                return bundle.getParcelable("contentOffset");
+                contentOffset = new Point(bundle.getInt("contentOffsetX"), bundle.getInt("contentOffsetY"));
             } else {
-
-                RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
-                if (layoutManager instanceof FlexLayoutManager) {
-                    FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-
-                    View view = mRecyclerView.getChildAt(mDataSource.getMinPagablePosition() - 1);
-
-                    Point contentOffset = flexLayoutManager.getContentOffset();
-                    return new Point(0, mStickyItemFrame.top - mNavFrame.height() );
-                }
-
+                contentOffset = new Point(0, mStickyItemFrame.top - mNavFrame.height() );
             }
+
+            Log.i("Flex", "RestoreState for page" + page + ": " + contentOffset.toString());
         } else {
             RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
             if (layoutManager instanceof FlexLayoutManager) {
                 FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-                return flexLayoutManager.getContentOffset();
+                contentOffset = flexLayoutManager.getContentOffset();
             }
         }
 
-        return FlexLayoutManager.INVALID_CONTENT_OFFSET;
+        return contentOffset;
     }
 
     @Override
@@ -588,18 +521,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         } else if (section == (mDataSource.getMinPagableSection() - 1) && item == 0) {
             mIsCatBarStickyMode = true;
             mStickyItemFrame.set(frame);
-
-            RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
-            if (layoutManager instanceof FlexLayoutManager) {
-                FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-
-                View view = mRecyclerView.getChildAt(mDataSource.getMinPagablePosition() - 1);
-
-                Point contentOffset = flexLayoutManager.getContentOffset();
-                mStickyItemSize = mStickyItemFrame.bottom - contentOffset.y;
-            }
-
-
         }
 
         Log.d("Flex", "Item: [" + section + "," + item + "] x into sticky mode, frame=" + frame.toShortString());
@@ -607,10 +528,11 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
     @Override
     public void onItemExitStickyMode(int section, int item, int position) {
-        if (section == mDataSource.getMinPagableSection() && item == 0) {
+        if (section == (mDataSource.getMinPagableSection() - 1) && item == 0) {
             mIsCatBarStickyMode = false;
             mRecyclerViewStates.clear();
         }
         Log.d("Flex", "Item: [" + section + "," + item + "] exit from sticky mode");
     }
+
 }

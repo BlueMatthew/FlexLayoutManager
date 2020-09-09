@@ -115,7 +115,13 @@ public:
     template <class TStickySectionItem>
     inline static RecyclerLayoutItemT makeLayoutItem(const TStickySectionItem &stickySectionItem, const Rect &rect)
     {
-        return RecyclerLayoutItemT(0, stickySectionItem.getSection(), stickySectionItem.getItem(), stickySectionItem.getPosition(), rect);
+        return makeLayoutItem(0, stickySectionItem, rect);
+    }
+
+    template <class TStickySectionItem>
+    inline static RecyclerLayoutItemT makeLayoutItem(TInt page, const TStickySectionItem &stickySectionItem, const Rect &rect)
+    {
+        return RecyclerLayoutItemT(page, stickySectionItem.getSection(), stickySectionItem.getItem(), stickySectionItem.getPosition(), rect);
     }
 
     RecyclerLayoutItemT& operator=(const RecyclerLayoutItemT &other)

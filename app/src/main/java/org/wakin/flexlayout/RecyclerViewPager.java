@@ -94,7 +94,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
      */
     @SuppressWarnings("WeakerAccess")
     public static final int ANIMATION_TYPE_DRAG = 1 << 3;
-    private static final String TAG = "ItemTouchHelper";
+    private static final String TAG = "RecyclerViewPager";
     private static final boolean DEBUG = true;
     private static final int ACTIVE_POINTER_ID_NONE = -1;
     static final int DIRECTION_FLAG_COUNT = 8;
@@ -197,10 +197,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     private List<ViewHolder> mSwapTargets;
     //re used for for sorting swap targets
     private List<Integer> mDistances;
-    /**
-     * If drag & drop is supported, we use child drawing order to bring them to front.
-     */
-    private RecyclerView.ChildDrawingOrderCallback mChildDrawingOrderCallback = null;
     /**
      * This keeps a reference to the child dragged by the user. Even after user stops dragging,
      * until view reaches its final position (end of recover animation), we keep a reference so
@@ -370,7 +366,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     private void setupCallbacks() {
         ViewConfiguration vc = ViewConfiguration.get(mRecyclerView.getContext());
         mSlop = vc.getScaledTouchSlop();
-        mRecyclerView.addItemDecoration(this);
         mRecyclerView.addOnItemTouchListener(mOnItemTouchListener);
         mRecyclerView.addOnChildAttachStateChangeListener(this);
         startGestureDetection();
@@ -380,14 +375,13 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             mState.remove(mResIdPaging);
         }
         mState = null;
-        mRecyclerView.removeItemDecoration(this);
         mRecyclerView.removeOnItemTouchListener(mOnItemTouchListener);
         mRecyclerView.removeOnChildAttachStateChangeListener(this);
         // clean all attached
         final int recoverAnimSize = mRecoverAnimations.size();
         for (int i = recoverAnimSize - 1; i >= 0; i--) {
             final RecoverAnimation recoverAnimation = mRecoverAnimations.get(0);
-            mCallback.clearView(mRecyclerView, recoverAnimation.mViewHolder);
+            // mCallback.clearView(mRecyclerView, recoverAnimation.mViewHolder);
         }
         mRecoverAnimations.clear();
         mOverdrawChild = null;
@@ -403,7 +397,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     }
     private void stopGestureDetection() {
         if (mPagerGestureListener != null) {
-            mPagerGestureListener.doNotReactToLongPress();
             mPagerGestureListener = null;
         }
         if (mGestureDetector != null) {
@@ -438,8 +431,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             dx = mTmpPosition[0];
             dy = mTmpPosition[1];
         // }
-        mCallback.onDrawOver(c, parent, null,
-                mRecoverAnimations, mActionState, dx, dy);
+        // mCallback.onDrawOver(c, parent, null, mRecoverAnimations, mActionState, dx, dy);
     }
     @Override
     public void onDraw(Canvas c, RecyclerView parent, RecyclerView.State state) {
@@ -454,8 +446,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             dx = mTmpPosition[0];
             dy = mTmpPosition[1];
         // }
-        mCallback.onDraw(c, parent, null,
-                mRecoverAnimations, mActionState, dx, dy);
+        // mCallback.onDraw(c, parent, null, mRecoverAnimations, mActionState, dx, dy);
     }
     /**
      * Starts dragging or swiping the given View. Call with null if you want to clear it.
@@ -605,8 +596,8 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                             && !hasRunningRecoverAnim()) {
                         mCallback.onSwiped(mRecyclerView, anim.mViewHolder, swipeDir);
                         if (!anim.mIsPendingCleanup) {
-                            removeChildDrawingOrderCallbackIfNecessary(null != anim.mViewHolder ? anim.mViewHolder.itemView : null);
-                            mCallback.clearView(mRecyclerView, anim.mViewHolder);
+                            // removeChildDrawingOrderCallbackIfNecessary(null != anim.mViewHolder ? anim.mViewHolder.itemView : null);
+                            // mCallback.clearView(mRecyclerView, anim.mViewHolder);
                         }
                     } else {
                         mRecyclerView.post(this);
@@ -750,7 +741,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         if (mActionState != ACTION_STATE_DRAG) {
             return;
         }
-        final float threshold = mCallback.getMoveThreshold(viewHolder);
+        final float threshold = 0; // mCallback.getMoveThreshold(viewHolder);
         final int x = (int) (mSelectedStartX + mDx);
         final int y = (int) (mSelectedStartY + mDy);
         if (Math.abs(y - viewHolder.itemView.getTop()) < viewHolder.itemView.getHeight() * threshold
@@ -763,33 +754,27 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             return;
         }
         // may swap.
-        ViewHolder target = mCallback.chooseDropTarget(viewHolder, swapTargets, x, y);
+        ViewHolder target = null; // mCallback.chooseDropTarget(viewHolder, swapTargets, x, y);
         if (target == null) {
             mSwapTargets.clear();
             mDistances.clear();
             return;
         }
-        final int toPosition = target.getAdapterPosition();
-        final int fromPosition = viewHolder.getAdapterPosition();
-        if (mCallback.onMove(mRecyclerView, viewHolder, target)) {
-            // keep target visible
-            mCallback.onMoved(mRecyclerView, viewHolder, fromPosition,
-                    target, toPosition, x, y);
-        }
+
     }
     @Override
     public void onChildViewAttachedToWindow(@NonNull View view) {
     }
     @Override
     public void onChildViewDetachedFromWindow(@NonNull View view) {
-        removeChildDrawingOrderCallbackIfNecessary(view);
+        // removeChildDrawingOrderCallbackIfNecessary(view);
         final ViewHolder holder = mRecyclerView.getChildViewHolder(view);
         if (holder == null) {
             return;
         }
         endRecoverAnimation(holder, false); // this may push it into pending cleanup list.
         if (mPendingCleanup.remove(holder.itemView)) {
-            mCallback.clearView(mRecyclerView, holder);
+            // mCallback.clearView(mRecyclerView, holder);
         }
     }
     /**
@@ -1109,40 +1094,8 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         }
         return 0;
     }
-    private void addChildDrawingOrderCallback() {
-        if (Build.VERSION.SDK_INT >= 21) {
-            return; // we use elevation on Lollipop
-        }
-        if (mChildDrawingOrderCallback == null) {
-            mChildDrawingOrderCallback = new RecyclerView.ChildDrawingOrderCallback() {
-                @Override
-                public int onGetChildDrawingOrder(int childCount, int i) {
-                    if (mOverdrawChild == null) {
-                        return i;
-                    }
-                    int childPosition = mOverdrawChildPosition;
-                    if (childPosition == -1) {
-                        childPosition = mRecyclerView.indexOfChild(mOverdrawChild);
-                        mOverdrawChildPosition = childPosition;
-                    }
-                    if (i == childCount - 1) {
-                        return childPosition;
-                    }
-                    return i < childPosition ? i : i + 1;
-                }
-            };
-        }
-        mRecyclerView.setChildDrawingOrderCallback(mChildDrawingOrderCallback);
-    }
-    private void removeChildDrawingOrderCallbackIfNecessary(View view) {
-        if (view == mOverdrawChild) {
-            mOverdrawChild = null;
-            // only remove if we've added
-            if (mChildDrawingOrderCallback != null) {
-                mRecyclerView.setChildDrawingOrderCallback(null);
-            }
-        }
-    }
+
+
     /**
      * An interface which can be implemented by LayoutManager for better integration with
      * {@link RecyclerViewPager}.
@@ -1232,6 +1185,15 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         public abstract int getMovementFlags(@NonNull RecyclerView recyclerView,
                                              @NonNull ViewHolder viewHolder);
 
+        public abstract boolean isItemPagable(int pos);
+        public abstract int getCurrentPage();
+        public abstract int getNumberOfPages();
+
+        public abstract Object onPaginationStarted(int pos, int initialDirection);  // return BatchSwipeContext
+        public abstract void onPaging(int pos, float offsetX, float offsetY, boolean scrollingOrAnimation, Object batchSwipeContext);
+        public abstract void onPaginationFinished(int pos, int direction, Object batchSwipeContext);
+        public abstract void onSwipeFinished(int pos, boolean cancelled, int direction, Object batchSwipeContext);
+
         @SuppressWarnings("WeakerAccess")
         public int convertToAbsoluteDirection(int flags, int layoutDirection) {
             int masked = flags & RELATIVE_DIR_FLAGS;
@@ -1272,26 +1234,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             return true;
         }
 
-        public abstract boolean onMove(@NonNull RecyclerView recyclerView,
-                                       @NonNull ViewHolder viewHolder, @NonNull ViewHolder target);
-
-        public boolean isLongPressDragEnabled() {
-            return true;
-        }
-        /**
-         * Returns whether ItemTouchHelper should start a swipe operation if a pointer is swiped
-         * over the View.
-         * <p>
-         * Default value returns true but you may want to disable this if you want to start
-         * swiping on a custom view touch using {@link #startSwipe(ViewHolder)}.
-         *
-         * @return True if ItemTouchHelper should start swiping an item when user swipes a pointer
-         * over the View, false otherwise. Default value is <code>true</code>.
-         * @see #startSwipe(ViewHolder)
-         */
-        public boolean isItemViewSwipeEnabled() {
-            return true;
-        }
         /**
          * When finding views under a dragged view, by default, ItemTouchHelper searches for views
          * that overlap with the dragged View. By overriding this method, you can extend or shrink
@@ -1318,19 +1260,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         public float getSwipeThreshold(@NonNull ViewHolder viewHolder) {
             return .5f;
         }
-        /**
-         * Returns the fraction that the user should move the View to be considered as it is
-         * dragged. After a view is moved this amount, ItemTouchHelper starts checking for Views
-         * below it for a possible drop.
-         *
-         * @param viewHolder The ViewHolder that is being dragged.
-         * @return A float value that denotes the fraction of the View size. Default value is
-         * .5f .
-         */
-        @SuppressWarnings("WeakerAccess")
-        public float getMoveThreshold(@NonNull ViewHolder viewHolder) {
-            return .5f;
-        }
+
 
         @SuppressWarnings("WeakerAccess")
         public float getSwipeEscapeVelocity(float defaultValue) {
@@ -1342,69 +1272,9 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             return defaultValue;
         }
 
-        @SuppressWarnings("WeakerAccess")
-        public ViewHolder chooseDropTarget(@NonNull ViewHolder selected,
-                                           @NonNull List<ViewHolder> dropTargets, int curX, int curY) {
-            int right = curX + selected.itemView.getWidth();
-            int bottom = curY + selected.itemView.getHeight();
-            ViewHolder winner = null;
-            int winnerScore = -1;
-            final int dx = curX - selected.itemView.getLeft();
-            final int dy = curY - selected.itemView.getTop();
-            final int targetsSize = dropTargets.size();
-            for (int i = 0; i < targetsSize; i++) {
-                final ViewHolder target = dropTargets.get(i);
-                if (dx > 0) {
-                    int diff = target.itemView.getRight() - right;
-                    if (diff < 0 && target.itemView.getRight() > selected.itemView.getRight()) {
-                        final int score = Math.abs(diff);
-                        if (score > winnerScore) {
-                            winnerScore = score;
-                            winner = target;
-                        }
-                    }
-                }
-                if (dx < 0) {
-                    int diff = target.itemView.getLeft() - curX;
-                    if (diff > 0 && target.itemView.getLeft() < selected.itemView.getLeft()) {
-                        final int score = Math.abs(diff);
-                        if (score > winnerScore) {
-                            winnerScore = score;
-                            winner = target;
-                        }
-                    }
-                }
-                if (dy < 0) {
-                    int diff = target.itemView.getTop() - curY;
-                    if (diff > 0 && target.itemView.getTop() < selected.itemView.getTop()) {
-                        final int score = Math.abs(diff);
-                        if (score > winnerScore) {
-                            winnerScore = score;
-                            winner = target;
-                        }
-                    }
-                }
-                if (dy > 0) {
-                    int diff = target.itemView.getBottom() - bottom;
-                    if (diff < 0 && target.itemView.getBottom() > selected.itemView.getBottom()) {
-                        final int score = Math.abs(diff);
-                        if (score > winnerScore) {
-                            winnerScore = score;
-                            winner = target;
-                        }
-                    }
-                }
-            }
-            return winner;
-        }
-
         public abstract void onSwiped(RecyclerView recyclerView, @NonNull ViewHolder viewHolder, int direction);
 
-        public void onSelectedChanged(@NonNull RecyclerView recyclerView, @Nullable ViewHolder viewHolder, int actionState, int initialDirection) {
-            if (viewHolder != null) {
-                ItemTouchUIUtilImpl.INSTANCE.onSelected(viewHolder.itemView);
-            }
-        }
+
         private int getMaxDragScroll(RecyclerView recyclerView) {
             if (mCachedMaxScrollSpeed == -1) {
                 mCachedMaxScrollSpeed = recyclerView.getResources().getDimensionPixelSize(
@@ -1415,116 +1285,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
 
         public void onScroll(@NonNull RecyclerView recyclerView,
                              @NonNull ViewHolder viewHolder, float dX, float dY, int actionState, boolean scrollingOrAnimation) {
-        }
-
-        public void onMoved(@NonNull final RecyclerView recyclerView,
-                            @NonNull final ViewHolder viewHolder, int fromPos, @NonNull final ViewHolder target,
-                            int toPos, int x, int y) {
-            final RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
-            if (layoutManager instanceof ViewDropHandler) {
-                ((ViewDropHandler) layoutManager).prepareForDrop(viewHolder.itemView,
-                        target.itemView, x, y);
-                return;
-            }
-            // if layout manager cannot handle it, do some guesswork
-            if (layoutManager.canScrollHorizontally()) {
-                final int minLeft = layoutManager.getDecoratedLeft(target.itemView);
-                if (minLeft <= recyclerView.getPaddingLeft()) {
-                    recyclerView.scrollToPosition(toPos);
-                }
-                final int maxRight = layoutManager.getDecoratedRight(target.itemView);
-                if (maxRight >= recyclerView.getWidth() - recyclerView.getPaddingRight()) {
-                    recyclerView.scrollToPosition(toPos);
-                }
-            }
-            if (layoutManager.canScrollVertically()) {
-                final int minTop = layoutManager.getDecoratedTop(target.itemView);
-                if (minTop <= recyclerView.getPaddingTop()) {
-                    recyclerView.scrollToPosition(toPos);
-                }
-                final int maxBottom = layoutManager.getDecoratedBottom(target.itemView);
-                if (maxBottom >= recyclerView.getHeight() - recyclerView.getPaddingBottom()) {
-                    recyclerView.scrollToPosition(toPos);
-                }
-            }
-        }
-
-        void onDraw(Canvas c, RecyclerView parent, ViewHolder selected,
-                    List<RecyclerViewPager.RecoverAnimation> recoverAnimationList,
-                    int actionState, float dX, float dY) {
-            final int recoverAnimSize = recoverAnimationList.size();
-            for (int i = 0; i < recoverAnimSize; i++) {
-                final RecyclerViewPager.RecoverAnimation anim = recoverAnimationList.get(i);
-                anim.update();
-                final int count = c.save();
-                onChildDraw(c, parent, anim.mViewHolder, anim.mX, anim.mY, anim.mActionState,
-                        false);
-                c.restoreToCount(count);
-
-                onScroll(parent, anim.mViewHolder, anim.mX, anim.mY, anim.mActionState, false);
-            }
-            if (selected != null) {
-
-                final int count = c.save();
-                onChildDraw(c, parent, selected, dX, dY, actionState, true);
-                c.restoreToCount(count);
-
-                // It means user is dragging the itemview if selected != null
-                // The itemView will be moved by touch event but not here
-                // So we don't need to call onScroll
-            }
-        }
-        void onDrawOver(Canvas c, RecyclerView parent, ViewHolder selected,
-                        List<RecyclerViewPager.RecoverAnimation> recoverAnimationList,
-                        int actionState, float dX, float dY) {
-            final int recoverAnimSize = recoverAnimationList.size();
-            for (int i = 0; i < recoverAnimSize; i++) {
-                final RecyclerViewPager.RecoverAnimation anim = recoverAnimationList.get(i);
-                final int count = c.save();
-                onChildDrawOver(c, parent, anim.mViewHolder, anim.mX, anim.mY, anim.mActionState,
-                        false);
-                c.restoreToCount(count);
-            }
-            if (selected != null) {
-                final int count = c.save();
-                onChildDrawOver(c, parent, selected, dX, dY, actionState, true);
-                c.restoreToCount(count);
-            }
-            boolean hasRunningAnimation = false;
-            for (int i = recoverAnimSize - 1; i >= 0; i--) {
-                final RecoverAnimation anim = recoverAnimationList.get(i);
-                if (anim.mEnded && !anim.mIsPendingCleanup) {
-                    recoverAnimationList.remove(i);
-                } else if (!anim.mEnded) {
-                    hasRunningAnimation = true;
-                }
-            }
-            if (hasRunningAnimation) {
-                parent.invalidate();
-            }
-
-            // if animator is running or we have other active recover animations, we try
-            // not to call onSwiped because DefaultItemAnimator is not good at merging
-            // animations. Instead, we wait and batch.
-
-        }
-
-        public void clearView(@NonNull RecyclerView recyclerView, @NonNull ViewHolder viewHolder) {
-            ItemTouchUIUtilImpl.INSTANCE.clearView(viewHolder.itemView);
-        }
-
-        public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView,
-                                @NonNull ViewHolder viewHolder,
-                                float dX, float dY, int actionState, boolean isCurrentlyActive) {
-            ItemTouchUIUtilImpl.INSTANCE.onDraw(c, recyclerView, viewHolder.itemView, dX, dY,
-                    actionState, isCurrentlyActive);
-        }
-
-        public void onChildDrawOver(@NonNull Canvas c, @NonNull RecyclerView recyclerView,
-                                    ViewHolder viewHolder,
-                                    float dX, float dY, int actionState, boolean isCurrentlyActive) {
-            ItemTouchUIUtilImpl.INSTANCE.onDrawOver(c, recyclerView, viewHolder.itemView, dX, dY,
-                    actionState, isCurrentlyActive);
         }
 
         @SuppressWarnings("WeakerAccess")
@@ -1568,15 +1328,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
 
     private class PagerGestureListener extends GestureDetector.SimpleOnGestureListener {
 
-        private boolean mShouldReactToLongPress = true;
         PagerGestureListener() {
-        }
-        /**
-         * Call to prevent executing code in response to
-         * {@link PagerGestureListener#onLongPress(MotionEvent)} being called.
-         */
-        void doNotReactToLongPress() {
-            mShouldReactToLongPress = false;
         }
         @Override
         public boolean onDown(MotionEvent e) {
@@ -1597,9 +1349,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
 
         @Override
         public void onShowPress(MotionEvent e) {
-            if (!mShouldReactToLongPress) {
-                return;
-            }
             View child = findChildView(e);
             if (child != null) {
                 ViewHolder vh = mRecyclerView.getChildViewHolder(child);
@@ -1623,18 +1372,13 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                             Log.d(TAG,
                                     "onlong press: x:" + mInitialTouchX + ",y:" + mInitialTouchY);
                         }
-                        if (mCallback.isLongPressDragEnabled()) {
-                            select(vh, ACTION_STATE_DRAG);
-                        }
+
                     }
                 }
             }
         }
 
-        @Override
-        public void onLongPress(MotionEvent e) {
 
-        }
     }
     private static class RecoverAnimation implements Animator.AnimatorListener {
         final float mStartDx;

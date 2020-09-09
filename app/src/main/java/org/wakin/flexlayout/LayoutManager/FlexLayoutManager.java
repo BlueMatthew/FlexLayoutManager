@@ -512,7 +512,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 if (null != visibleItems) {
                     for (LayoutItem layoutItem : visibleItems) {
                         Log.i("Flex", "visibleItems: page=" + layoutItem.getPage() + " pos=" + layoutItem.getPosition() + " section=" + layoutItem.getSection() +
-                                " item=" + layoutItem.getItem() + " pt=" + layoutItem.getFrame().left + "," + layoutItem.getFrame().top);
+                                " item=" + layoutItem.getItem() + " pt=" + layoutItem.getFrame().left + "," + layoutItem.getFrame().top + " sticky=" +
+                                (layoutItem.isInSticky() ? "1" : "0") + " oroginchanged=" + (layoutItem.isOriginChanged() ? "1" : "0"));
                     }
                 }
             }
@@ -581,7 +582,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
                 // Currently visible
                 layoutItem = visibleItems.get(itemIndex);
 
-                if (layoutItem.isInSticky() && layoutItem.isOriginChanged()) {
+                // if (layoutItem.isInSticky() && layoutItem.isOriginChanged()) {
+                if (layoutItem.isInSticky()) {
                     // Sticky
                     visibleStickyItems.put(layoutItem, childView);
 
@@ -645,7 +647,8 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
 
 
         for (LayoutItem item : visibleItems) {
-            if (item.isInSticky() && item.isOriginChanged()) {
+            // if (item.isInSticky() && item.isOriginChanged()) {
+            if (item.isInSticky()) {
                 // If the origin is changing, we will layout the view later to put it higher in z-order
                 // visibleStickyItems.put()
                 if (!visibleStickyItems.containsKey(item)) {
@@ -708,13 +711,16 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             SortedMap.Entry<LayoutItem, View> entry = (SortedMap.Entry<LayoutItem, View>)it.next();
 
             rect.set(entry.getKey().getFrame());
-            Log.d(TAG, "LayoutItem: pos=" + entry.getKey().getPosition() + " rect=" + rect.toString());
+            Log.d(TAG, "StickyLayoutItem: pos=" + entry.getKey().getPosition() + " rect=" + rect.toString());
 
             if (null != entry.getValue()) {
                 // detachAndScrapView(entry.getValue().second, recycler);
                 // addView(entry.getValue().second);
                 detachView(entry.getValue());
                 attachView(entry.getValue());
+
+                // detachAndScrapView(entry.getValue(), recycler);
+                // addView(entry.getValue());
 
                 layoutDecorated(entry.getValue(), rect.left, rect.top, rect.right, rect.bottom);
             } else {

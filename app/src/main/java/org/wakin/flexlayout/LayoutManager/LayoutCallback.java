@@ -28,7 +28,6 @@ public interface LayoutCallback {
     int getNumberOfPages();
     int getNumberOfFixedSections();
     int getNumberOfSectionsForPage(int page);
-    int[] getPendingPages();
     Point getContentOffsetForPage(int page);
 
     void onItemEnterStickyMode(int section, int item, int position, Rect frame);

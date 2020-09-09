@@ -173,11 +173,16 @@ public:
     template<class TSection>
     LayoutItemT(TInt page, const TSection &section, const FlexItem &src) : FlexItem(src), m_page(page), m_section(section.getSection()), m_inSticky(false), m_originChanged(false) {}
 
-
     template <class TStickySectionItem>
     inline static LayoutItemT makeLayoutItem(const TStickySectionItem &stickySectionItem, const Rect &rect)
     {
-        LayoutItemT layoutItem(0, stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
+        return makeLayoutItem(0, stickySectionItem, rect);
+    }
+
+    template <class TStickySectionItem>
+    inline static LayoutItemT makeLayoutItem(TInt page, const TStickySectionItem &stickySectionItem, const Rect &rect)
+    {
+        LayoutItemT layoutItem(page, stickySectionItem.getSection(), stickySectionItem.getItem(), rect);
 #ifdef HAVING_HEADER_AND_FOOTER
         layoutItem.setHeader(true);
 #endif // #ifdef HAVING_HEADER_AND_FOOTER
@@ -630,7 +635,7 @@ public:
                 else
                 {
                     // Create new LayoutItem and put it into visibleItems
-                    TLayoutItem layoutItem = TLayoutItem::makeLayoutItem(it->first, rect);
+                    TLayoutItem layoutItem = TLayoutItem::makeLayoutItem(m_page, it->first, rect);
                     layoutItem.setHeader(true);
                     layoutItem.setInSticky(true);
                     layoutItem.setOriginChanged(originChanged);

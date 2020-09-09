@@ -297,9 +297,8 @@ public class MainActivityDataSource {
         return mSections.get(index).getItem(position);
     }
 
-    public FlexRecyclerView.SectionViewHolder createViewHolder(ViewGroup parent, int viewType) {
+    public View createView(ViewGroup parent, int viewType) {
         View inflate = null;
-        FlexRecyclerView.SectionViewHolder viewHolder = null;
         if (VIEW_TYPE_NAV == viewType) {
             if (USING_INFLATE) {
                 inflate = LayoutInflater.from(parent.getContext()).inflate(R.layout.cell_nav, parent, false);
@@ -326,10 +325,6 @@ public class MainActivityDataSource {
             }
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams)inflate.getLayoutParams();
             if (VIEW_TYPE_ITEM == viewType) {
-
-                viewHolder = new FlexRecyclerView.SectionViewHolder(inflate);
-                // viewHolder.
-
                 if (lp instanceof StaggeredGridLayoutManager.LayoutParams) {
                     lp.height += (int) (Math.random() * 200);
                     ((StaggeredGridLayoutManager.LayoutParams) lp).setFullSpan(false);
@@ -348,10 +343,6 @@ public class MainActivityDataSource {
             }
             RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams)inflate.getLayoutParams();
             if (VIEW_TYPE_ITEM == viewType) {
-
-                viewHolder = new FlexRecyclerView.SectionViewHolder(inflate);
-                // viewHolder.
-
                 if (lp instanceof StaggeredGridLayoutManager.LayoutParams) {
                     lp.height += (int) (Math.random() * 200);
                     ((StaggeredGridLayoutManager.LayoutParams) lp).setFullSpan(false);
@@ -390,7 +381,7 @@ public class MainActivityDataSource {
             inflate = LayoutInflater.from(parent.getContext()).inflate(R.layout.cell_item, parent, false);
         }
 
-        return viewHolder == null ? new FlexRecyclerView.SectionViewHolder(inflate) : viewHolder;
+        return inflate;
     }
 
     public void bindCellView(int position, RecyclerView.ViewHolder holder) {
@@ -437,8 +428,6 @@ public class MainActivityDataSource {
                 }
             }
         }
-
-        cellData.displayed = true;
     }
 
     boolean isVertical() {
@@ -645,7 +634,6 @@ public class MainActivityDataSource {
             section.addCellData(cellData);
         }
     }
-
 
     private int toPixel(int dip) {
         Resources r = mContext.getResources();
