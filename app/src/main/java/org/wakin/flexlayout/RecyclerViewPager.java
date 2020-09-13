@@ -3,9 +3,7 @@ package org.wakin.flexlayout;
 import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.content.res.Resources;
-import android.graphics.Canvas;
 import android.graphics.Rect;
-import android.os.Build;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -18,16 +16,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.GestureDetectorCompat;
 import androidx.core.view.ViewCompat;
-import androidx.recyclerview.widget.ItemTouchUIUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.OnItemTouchListener;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public class RecyclerViewPager extends RecyclerView.ItemDecoration
-        implements RecyclerView.OnChildAttachStateChangeListener {
+public class RecyclerViewPager {
 
     /**
      * Up direction, used for swipe & drag control.
@@ -72,49 +67,29 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
      * A View is currently being swiped.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final int ACTION_STATE_SWIPE = 1;
-    /**
-     * A View is currently being dragged.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final int ACTION_STATE_DRAG = 2;
+    public static final int ACTION_STATE_PAGING = 1;
     /**
      * Animation type for views which are swiped successfully.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final int ANIMATION_TYPE_SWIPE_SUCCESS = 1 << 1;
+    public static final int ANIMATION_TYPE_PAGING_SUCCESS = 1 << 1;
     /**
      * Animation type for views which are not completely swiped thus will animate back to their
      * original position.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final int ANIMATION_TYPE_SWIPE_CANCEL = 1 << 2;
-    /**
-     * Animation type for views that were dragged and now will animate to their final position.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final int ANIMATION_TYPE_DRAG = 1 << 3;
+    public static final int ANIMATION_TYPE_PAGING_CANCEL = 1 << 2;
+
     private static final String TAG = "RecyclerViewPager";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final int ACTIVE_POINTER_ID_NONE = -1;
-    static final int DIRECTION_FLAG_COUNT = 8;
+    private static final int DIRECTION_FLAG_COUNT = 8;
     private static final int ACTION_MODE_IDLE_MASK = (1 << DIRECTION_FLAG_COUNT) - 1;
-    static final int ACTION_MODE_SWIPE_MASK = ACTION_MODE_IDLE_MASK << DIRECTION_FLAG_COUNT;
-    static final int ACTION_MODE_DRAG_MASK = ACTION_MODE_SWIPE_MASK << DIRECTION_FLAG_COUNT;
+    private static final int ACTION_MODE_SWIPE_MASK = ACTION_MODE_IDLE_MASK << DIRECTION_FLAG_COUNT;
     /**
      * The unit we are using to track velocity
      */
     private static final int PIXELS_PER_SECOND = 1000;
-    /**
-     * Views, whose state should be cleared after they are detached from RecyclerView.
-     * This is necessary after swipe dismissing an item. We wait until animator finishes its job
-     * to clean these views.
-     */
-    final List<View> mPendingCleanup = new ArrayList<>();
-    /**
-     * Re-use array to calculate dx dy for a ViewHolder
-     */
-    private final float[] mTmpPosition = new float[2];
     /**
      * The reference coordinates for the action start. For drag & drop, this is the time long
      * press is completed vs for swipe, this is the initial touch point.
@@ -125,23 +100,22 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     /**
      * Set when ItemTouchHelper is assigned to a RecyclerView.
      */
-    private float mSwipeEscapeVelocity;
+    private float mPagerEscapeVelocity;
     /**
      * Set when ItemTouchHelper is assigned to a RecyclerView.
      */
-    private float mMaxSwipeVelocity;
+    private float mMaxPagerVelocity;
     /**
      * The diff between the last event and initial touch.
      */
     private float mDx;
     private float mDy;
-    /**
-     * The coordinates of the selected view at the time it is selected. We record these values
-     * when action starts so that we can consistently position it even if LayoutManager moves the
-     * View.
-     */
-    private float mSelectedStartX;
-    private float mSelectedStartY;
+    private float mOutDx;
+    private float mOutDy;
+
+    private boolean mInPagableArea = false;
+    private boolean mInPaging = false;
+
     /**
      * The pointer we are tracking.
      */
@@ -157,7 +131,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     private int mActionState = ACTION_STATE_IDLE;
     /**
      * The direction flags obtained from unmasking
-     * {@link Callback#getAbsoluteMovementFlags(RecyclerView, ViewHolder)} for the current
+     * {@link Callback#getAbsoluteMovementFlags(RecyclerView)} for the current
      * action state.
      */
     private int mSelectedFlags;
@@ -168,7 +142,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
      * Using framework animators has the side effect of clashing with ItemAnimator, creating
      * jumpy UIs.
      */
-    List<RecoverAnimation> mRecoverAnimations = new ArrayList<>();
+    RecoverAnimation mRecoverAnimation = null;
     private int mSlop;
     private RecyclerView mRecyclerView;
 
@@ -193,24 +167,10 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
      * Used for detecting fling swipe
      */
     private VelocityTracker mVelocityTracker;
-    //re-used list for selecting a swap target
-    private List<ViewHolder> mSwapTargets;
     //re used for for sorting swap targets
     private List<Integer> mDistances;
     /**
-     * This keeps a reference to the child dragged by the user. Even after user stops dragging,
-     * until view reaches its final position (end of recover animation), we keep a reference so
-     * that it can be drawn above other children.
-     */
-    private View mOverdrawChild = null;
-    /**
-     * We cache the position of the overdraw child to avoid recalculating it each time child
-     * position callback is called. This value is invalidated whenever a child is attached or
-     * detached.
-     */
-    private int mOverdrawChildPosition = -1;
-    /**
-     * Used to detect long press.
+     * Used to detect drag and scroll.
      */
     private GestureDetectorCompat mGestureDetector;
     /**
@@ -231,9 +191,20 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                 mInitialTouchX = event.getX();
                 mInitialTouchY = event.getY();
                 obtainVelocityTracker();
+
+                if (mCallback.shouldStartPager(event.getX(), event.getY())) {
+                    mActionState = ACTION_STATE_PAGING;
+                    int actionStateMask = (1 << (DIRECTION_FLAG_COUNT + DIRECTION_FLAG_COUNT * mActionState)) - 1;
+                    mSelectedFlags =
+                            (mCallback.getAbsoluteMovementFlags(mRecyclerView) & actionStateMask)
+                                    >> (mActionState * DIRECTION_FLAG_COUNT);
+
+                    mInPagableArea = true;
+                }
             } else if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
                 mActivePointerId = ACTIVE_POINTER_ID_NONE;
                 select(null, ACTION_STATE_IDLE);
+                mInPagableArea = false;
             } else if (mActivePointerId != ACTIVE_POINTER_ID_NONE) {
                 // in a non scroll orientation, if distance change is above threshold, we
                 // can select the item
@@ -242,21 +213,21 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                     Log.d(TAG, "pointer index " + index);
                 }
                 if (index >= 0) {
-                    checkSelectForSwipe(action, event, index);
+                    // checkSelectForSwipe(action, event, index);
                 }
             }
             if (mVelocityTracker != null) {
                 mVelocityTracker.addMovement(event);
             }
-            return true;
+
+            return mInPagableArea && mInPaging;
             // return mSelected != null;
         }
         @Override
         public void onTouchEvent(@NonNull RecyclerView recyclerView, @NonNull MotionEvent event) {
             mGestureDetector.onTouchEvent(event);
             if (DEBUG) {
-                Log.d(TAG,
-                        "on touch: x:" + mInitialTouchX + ",y:" + mInitialTouchY + ", :" + event);
+                Log.d(TAG, "on touch: x:" + mInitialTouchX + ",y:" + mInitialTouchY + ", :" + event);
             }
             if (mVelocityTracker != null) {
                 mVelocityTracker.addMovement(event);
@@ -267,23 +238,19 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             final int action = event.getActionMasked();
             final int activePointerIndex = event.findPointerIndex(mActivePointerId);
             if (activePointerIndex >= 0) {
-                checkSelectForSwipe(action, event, activePointerIndex);
+                // checkSelectForSwipe(action, event, activePointerIndex);
             }
-            /*
-            ViewHolder viewHolder = mSelected;
-            if (viewHolder == null) {
-                return;
-            }
-             */
+
             switch (action) {
                 case MotionEvent.ACTION_MOVE: {
                     // Find the index of the active pointer and fetch its position
                     if (activePointerIndex >= 0) {
-                        updateDxDy(event, mSelectedFlags, activePointerIndex);
+                        // updateDxDy(event, mSelectedFlags, activePointerIndex);
                         // moveIfNecessary(viewHolder);
-                        mRecyclerView.removeCallbacks(mScrollRunnable);
-                        mScrollRunnable.run();
-                        mRecyclerView.invalidate();
+                        // mRecyclerView.removeCallbacks(mScrollRunnable);
+                        // mScrollRunnable.run();
+                        // mRecyclerView.invalidate();
+
                     }
                     break;
                 }
@@ -294,6 +261,13 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                     // fall through
                 case MotionEvent.ACTION_UP:
                     select(null, ACTION_STATE_IDLE);
+
+                    if (mInPagableArea && mInPaging) {
+                        startAnimation();
+                    }
+                    mInPaging = false;
+                    mInPagableArea = false;
+
                     mActivePointerId = ACTIVE_POINTER_ID_NONE;
                     break;
                 case MotionEvent.ACTION_POINTER_UP: {
@@ -318,10 +292,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             select(null, ACTION_STATE_IDLE);
         }
     };
-    /**
-     * Temporary rect instance that is used when we need to lookup Item decorations.
-     */
-    private Rect mTmpRect;
+
     /**
      * When user started to drag scroll. Reset when we don't scroll
      */
@@ -356,9 +327,9 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         mRecyclerView = recyclerView;
         if (recyclerView != null) {
             final Resources resources = recyclerView.getResources();
-            mSwipeEscapeVelocity = resources
+            mPagerEscapeVelocity = resources
                     .getDimension(R.dimen.item_touch_helper_swipe_escape_velocity);
-            mMaxSwipeVelocity = resources
+            mMaxPagerVelocity = resources
                     .getDimension(R.dimen.item_touch_helper_swipe_escape_max_velocity);
             setupCallbacks();
         }
@@ -367,7 +338,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         ViewConfiguration vc = ViewConfiguration.get(mRecyclerView.getContext());
         mSlop = vc.getScaledTouchSlop();
         mRecyclerView.addOnItemTouchListener(mOnItemTouchListener);
-        mRecyclerView.addOnChildAttachStateChangeListener(this);
         startGestureDetection();
     }
     private void destroyCallbacks() {
@@ -376,16 +346,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         }
         mState = null;
         mRecyclerView.removeOnItemTouchListener(mOnItemTouchListener);
-        mRecyclerView.removeOnChildAttachStateChangeListener(this);
-        // clean all attached
-        final int recoverAnimSize = mRecoverAnimations.size();
-        for (int i = recoverAnimSize - 1; i >= 0; i--) {
-            final RecoverAnimation recoverAnimation = mRecoverAnimations.get(0);
-            // mCallback.clearView(mRecyclerView, recoverAnimation.mViewHolder);
-        }
-        mRecoverAnimations.clear();
-        mOverdrawChild = null;
-        mOverdrawChildPosition = -1;
+        mRecoverAnimation = null;
         releaseVelocityTracker();
         stopGestureDetection();
     }
@@ -403,51 +364,105 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             mGestureDetector = null;
         }
     }
-    private void getSelectedDxDy(float[] outPosition) {
-        outPosition[0] = mDx;
-        outPosition[1] = mDy;
-        /*
-        if ((mSelectedFlags & (LEFT | RIGHT)) != 0) {
-            outPosition[0] = mSelectedStartX + mDx - mSelected.itemView.getLeft();
-        } else {
-            outPosition[0] = mSelected.itemView.getTranslationX();
-        }
-        if ((mSelectedFlags & (UP | DOWN)) != 0) {
-            outPosition[1] = mSelectedStartY + mDy - mSelected.itemView.getTop();
-        } else {
-            outPosition[1] = mSelected.itemView.getTranslationY();
+
+    private void startAnimation() {
+        // find where we should animate to
+        final float targetTranslateX, targetTranslateY;
+        final int prevActionState = ACTION_STATE_PAGING;
+        int animationType = ANIMATION_TYPE_PAGING_SUCCESS;
+        int pagerDir = pagerIfNecessary();
+
+        int page = mCallback.getPage();
+        if (page == 0) {
+            switch (pagerDir) {
+                case RIGHT:
+                case END:
+                case DOWN:
+                    pagerDir = 0;
+                    break;
+            }
+        } else if (page == mCallback.getNumberOfPages() - 1) {
+            switch (pagerDir) {
+                case LEFT:
+                case START:
+                case UP:
+                    pagerDir = 0;
+                    break;
+            }
         }
 
-         */
-    }
-    @Override
-    public void onDrawOver(Canvas c, RecyclerView parent, RecyclerView.State state) {
-        if (null == mState) {
-            mState = state;
+        switch (pagerDir) {
+            case LEFT:
+            case RIGHT:
+            case START:
+            case END:
+                targetTranslateY = 0;
+                targetTranslateX = Math.signum(mDx) * mRecyclerView.getWidth();
+                break;
+            case UP:
+            case DOWN:
+                targetTranslateX = 0;
+                targetTranslateY = Math.signum(mDy) * mRecyclerView.getHeight();
+                break;
+            default:
+                targetTranslateX = 0;
+                targetTranslateY = 0;
         }
-        float dx = 0, dy = 0;
-        // if (mSelected != null) {
-            getSelectedDxDy(mTmpPosition);
-            dx = mTmpPosition[0];
-            dy = mTmpPosition[1];
-        // }
-        // mCallback.onDrawOver(c, parent, null, mRecoverAnimations, mActionState, dx, dy);
-    }
-    @Override
-    public void onDraw(Canvas c, RecyclerView parent, RecyclerView.State state) {
-        if (null == mState) {
-            mState = state;
+
+
+        if (pagerDir > 0) {
+            animationType = ANIMATION_TYPE_PAGING_SUCCESS;
+        } else {
+            animationType = ANIMATION_TYPE_PAGING_CANCEL;
         }
-        // we don't know if RV changed something so we should invalidate this index.
-        mOverdrawChildPosition = -1;
-        float dx = 0, dy = 0;
-        // if (mSelected != null) {
-            getSelectedDxDy(mTmpPosition);
-            dx = mTmpPosition[0];
-            dy = mTmpPosition[1];
-        // }
-        // mCallback.onDraw(c, parent, null, mRecoverAnimations, mActionState, dx, dy);
+
+        final int pagerDirection = pagerDir;
+        /// getSelectedDxDy(mTmpPosition);
+        final float currentTranslateX = mOutDx;
+        final float currentTranslateY = mOutDy;
+        final RecoverAnimation rv = new RecoverAnimation(animationType,
+                prevActionState, currentTranslateX, currentTranslateY,
+                targetTranslateX, targetTranslateY) {
+
+            @Override
+            public void onUpdate(float x, float y) {
+                mCallback.onPaging(x, y, false);
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                super.onAnimationEnd(animation);
+                mCallback.onPagerFinished(this.mAnimationType == ANIMATION_TYPE_PAGING_CANCEL, pagerDirection, 0, 0);
+                if (this.mOverridden) {
+                    return;
+                }
+                /*
+                if (pagerDir <= 0) {
+                    // this is a drag or failed swipe. recover immediately
+                    // mCallback.clearView(mRecyclerView, prevSelected);
+                    // full cleanup will happen on onDrawOver
+                } else {
+                    // wait until remove animation is complete.
+                    // mPendingCleanup.add(prevSelected.itemView);
+                    // mIsPendingCleanup = true;
+                    if (pagerDir > 0) {
+                        // Animation might be ended by other animators during a layout.
+                        // We defer callback to avoid editing adapter during a layout.
+                        // postDispatchSwipe(this, pagerDir);
+                    }
+                }
+
+                 */
+
+            }
+        };
+        final long duration = mCallback.getAnimationDuration(mRecyclerView, animationType,
+                targetTranslateX - currentTranslateX, targetTranslateY - currentTranslateY);
+        rv.setDuration(duration);
+        mRecoverAnimation = rv;
+        rv.start();
     }
+
     /**
      * Starts dragging or swiping the given View. Call with null if you want to clear it.
      *
@@ -582,38 +597,10 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
     }
     private void postDispatchSwipe(final RecoverAnimation anim, final int swipeDir) {
         // wait until animations are complete.
-        mRecyclerView.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mRecyclerView != null && mRecyclerView.isAttachedToWindow()
-                        && !anim.mOverridden
-                        && anim.mViewHolder.getAdapterPosition() != RecyclerView.NO_POSITION) {
-                    final RecyclerView.ItemAnimator animator = mRecyclerView.getItemAnimator();
-                    // if animator is running or we have other active recover animations, we try
-                    // not to call onSwiped because DefaultItemAnimator is not good at merging
-                    // animations. Instead, we wait and batch.
-                    if ((animator == null || !animator.isRunning(null))
-                            && !hasRunningRecoverAnim()) {
-                        mCallback.onSwiped(mRecyclerView, anim.mViewHolder, swipeDir);
-                        if (!anim.mIsPendingCleanup) {
-                            // removeChildDrawingOrderCallbackIfNecessary(null != anim.mViewHolder ? anim.mViewHolder.itemView : null);
-                            // mCallback.clearView(mRecyclerView, anim.mViewHolder);
-                        }
-                    } else {
-                        mRecyclerView.post(this);
-                    }
-                }
-            }
-        });
+
     }
     private boolean hasRunningRecoverAnim() {
-        final int size = mRecoverAnimations.size();
-        for (int i = 0; i < size; i++) {
-            if (!mRecoverAnimations.get(i).mEnded) {
-                return true;
-            }
-        }
-        return false;
+        return !(mRecoverAnimation == null || mRecoverAnimation.mEnded);
     }
     /**
      * If user drags the view to the edge, trigger a scroll if necessary.
@@ -684,121 +671,20 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
 
          */
     }
-    private List<ViewHolder> findSwapTargets(ViewHolder viewHolder) {
-        if (mSwapTargets == null) {
-            mSwapTargets = new ArrayList<>();
-            mDistances = new ArrayList<>();
-        } else {
-            mSwapTargets.clear();
-            mDistances.clear();
-        }
-        final int margin = mCallback.getBoundingBoxMargin();
-        final int left = Math.round(mSelectedStartX + mDx) - margin;
-        final int top = Math.round(mSelectedStartY + mDy) - margin;
-        final int right = left + viewHolder.itemView.getWidth() + 2 * margin;
-        final int bottom = top + viewHolder.itemView.getHeight() + 2 * margin;
-        final int centerX = (left + right) / 2;
-        final int centerY = (top + bottom) / 2;
-        final RecyclerView.LayoutManager lm = mRecyclerView.getLayoutManager();
-        final int childCount = lm.getChildCount();
-        for (int i = 0; i < childCount; i++) {
-            View other = lm.getChildAt(i);
-            if (other == viewHolder.itemView) {
-                continue; //myself!
-            }
-            if (other.getBottom() < top || other.getTop() > bottom
-                    || other.getRight() < left || other.getLeft() > right) {
-                continue;
-            }
-            final ViewHolder otherVh = mRecyclerView.getChildViewHolder(other);
-            if (mCallback.canDropOver(mRecyclerView, null, otherVh)) {
-                // find the index to add
-                final int dx = Math.abs(centerX - (other.getLeft() + other.getRight()) / 2);
-                final int dy = Math.abs(centerY - (other.getTop() + other.getBottom()) / 2);
-                final int dist = dx * dx + dy * dy;
-                int pos = 0;
-                final int cnt = mSwapTargets.size();
-                for (int j = 0; j < cnt; j++) {
-                    if (dist > mDistances.get(j)) {
-                        pos++;
-                    } else {
-                        break;
-                    }
-                }
-                mSwapTargets.add(pos, otherVh);
-                mDistances.add(pos, dist);
-            }
-        }
-        return mSwapTargets;
-    }
-    /**
-     * Checks if we should swap w/ another view holder.
-     */
-    private void moveIfNecessary(ViewHolder viewHolder) {
-        if (mRecyclerView.isLayoutRequested()) {
-            return;
-        }
-        if (mActionState != ACTION_STATE_DRAG) {
-            return;
-        }
-        final float threshold = 0; // mCallback.getMoveThreshold(viewHolder);
-        final int x = (int) (mSelectedStartX + mDx);
-        final int y = (int) (mSelectedStartY + mDy);
-        if (Math.abs(y - viewHolder.itemView.getTop()) < viewHolder.itemView.getHeight() * threshold
-                && Math.abs(x - viewHolder.itemView.getLeft())
-                < viewHolder.itemView.getWidth() * threshold) {
-            return;
-        }
-        List<ViewHolder> swapTargets = findSwapTargets(viewHolder);
-        if (swapTargets.size() == 0) {
-            return;
-        }
-        // may swap.
-        ViewHolder target = null; // mCallback.chooseDropTarget(viewHolder, swapTargets, x, y);
-        if (target == null) {
-            mSwapTargets.clear();
-            mDistances.clear();
-            return;
-        }
 
-    }
-    @Override
-    public void onChildViewAttachedToWindow(@NonNull View view) {
-    }
-    @Override
-    public void onChildViewDetachedFromWindow(@NonNull View view) {
-        // removeChildDrawingOrderCallbackIfNecessary(view);
-        final ViewHolder holder = mRecyclerView.getChildViewHolder(view);
-        if (holder == null) {
-            return;
-        }
-        endRecoverAnimation(holder, false); // this may push it into pending cleanup list.
-        if (mPendingCleanup.remove(holder.itemView)) {
-            // mCallback.clearView(mRecyclerView, holder);
-        }
-    }
     /**
      * Returns the animation type or 0 if cannot be found.
      */
     private void endRecoverAnimation(ViewHolder viewHolder, boolean override) {
-        final int recoverAnimSize = mRecoverAnimations.size();
-        for (int i = recoverAnimSize - 1; i >= 0; i--) {
-            final RecoverAnimation anim = mRecoverAnimations.get(i);
-            if (anim.mViewHolder == viewHolder) {
-                anim.mOverridden |= override;
-                if (!anim.mEnded) {
-                    anim.cancel();
-                }
-                mRecoverAnimations.remove(i);
-                return;
+        if (mRecoverAnimation != null) {
+            mRecoverAnimation.mOverridden |= override;
+            if (!mRecoverAnimation.mEnded) {
+                mRecoverAnimation.cancel();
             }
+            mRecoverAnimation = null;
         }
     }
-    @Override
-    public void getItemOffsets(Rect outRect, View view, RecyclerView parent,
-                               RecyclerView.State state) {
-        outRect.setEmpty();
-    }
+
     private void obtainVelocityTracker() {
         if (mVelocityTracker != null) {
             mVelocityTracker.recycle();
@@ -811,172 +697,14 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             mVelocityTracker = null;
         }
     }
-    private ViewHolder findSwipedView(MotionEvent motionEvent) {
-        final RecyclerView.LayoutManager lm = mRecyclerView.getLayoutManager();
-        if (mActivePointerId == ACTIVE_POINTER_ID_NONE) {
-            return null;
-        }
-        final int pointerIndex = motionEvent.findPointerIndex(mActivePointerId);
-        final float dx = motionEvent.getX(pointerIndex) - mInitialTouchX;
-        final float dy = motionEvent.getY(pointerIndex) - mInitialTouchY;
-        final float absDx = Math.abs(dx);
-        final float absDy = Math.abs(dy);
-        if (absDx < mSlop && absDy < mSlop) {
-            return null;
-        }
-        if (absDx > absDy && lm.canScrollHorizontally()) {
-            return null;
-        } else if (absDy > absDx && lm.canScrollVertically()) {
-            return null;
-        }
-        View child = findChildView(motionEvent);
-        if (child == null) {
-            return null;
-        }
-        return mRecyclerView.getChildViewHolder(child);
-    }
-    /**
-     * Checks whether we should select a View for swiping.
-     */
-    private void checkSelectForSwipe(int action, MotionEvent motionEvent, int pointerIndex) {
-        return;
-        /*
-        if (mSelected != null || action != MotionEvent.ACTION_MOVE
-                || mActionState == ACTION_STATE_DRAG || !mCallback.isItemViewSwipeEnabled()) {
-            return;
-        }
-        if (mRecyclerView.getScrollState() == RecyclerView.SCROLL_STATE_DRAGGING) {
-            return;
-        }
-        final ViewHolder vh = findSwipedView(motionEvent);
-        if (vh == null) {
-            return;
-        }
-        final int movementFlags = mCallback.getAbsoluteMovementFlags(mRecyclerView, vh);
-        final int swipeFlags = (movementFlags & ACTION_MODE_SWIPE_MASK)
-                >> (DIRECTION_FLAG_COUNT * ACTION_STATE_SWIPE);
-        if (swipeFlags == 0) {
-            return;
-        }
-        // mDx and mDy are only set in allowed directions. We use custom x/y here instead of
-        // updateDxDy to avoid swiping if user moves more in the other direction
-        final float x = motionEvent.getX(pointerIndex);
-        final float y = motionEvent.getY(pointerIndex);
-        // Calculate the distance moved
-        final float dx = x - mInitialTouchX;
-        final float dy = y - mInitialTouchY;
-        // swipe target is chose w/o applying flags so it does not really check if swiping in that
-        // direction is allowed. This why here, we use mDx mDy to check slope value again.
-        final float absDx = Math.abs(dx);
-        final float absDy = Math.abs(dy);
-        if (absDx < mSlop && absDy < mSlop) {
-            return;
-        }
-        mInitialSwipeDir = 0;
-        if (absDx > absDy) {
-            if (dx < 0 && (swipeFlags & LEFT) == 0) {
-                return;
-            }
-            if (dx > 0 && (swipeFlags & RIGHT) == 0) {
-                return;
-            }
-            if (dx < 0) {
-                mInitialSwipeDir |= LEFT;
-            } else if (dx > 0) {
-                mInitialSwipeDir |= RIGHT;
-            }
-        } else {
-            if (dy < 0 && (swipeFlags & UP) == 0) {
-                return;
-            }
-            if (dy > 0 && (swipeFlags & DOWN) == 0) {
-                return;
-            }
-            if (dy < 0) {
-                mInitialSwipeDir |= UP;
-            } else if (dy > 0) {
-                mInitialSwipeDir |= DOWN;
-            }
-        }
 
-        mDx = mDy = 0f;
-        mActivePointerId = motionEvent.getPointerId(0);
-        select(vh, ACTION_STATE_SWIPE);
-
-         */
-    }
-    private View findChildView(MotionEvent event) {
-        return null;
-        /*
-        // first check elevated views, if none, then call RV
-        final float x = event.getX();
-        final float y = event.getY();
-        if (mSelected != null) {
-            final View selectedView = mSelected.itemView;
-            if (hitTest(selectedView, x, y, mSelectedStartX + mDx, mSelectedStartY + mDy)) {
-                return selectedView;
-            }
-        }
-        for (int i = mRecoverAnimations.size() - 1; i >= 0; i--) {
-            final RecoverAnimation anim = mRecoverAnimations.get(i);
-            final View view = anim.mViewHolder.itemView;
-            if (hitTest(view, x, y, anim.mX, anim.mY)) {
-                return view;
-            }
-        }
-        return mRecyclerView.findChildViewUnder(x, y);
-
-         */
-    }
-
-    public void startDrag(@NonNull ViewHolder viewHolder) {
-        if (!mCallback.hasDragFlag(mRecyclerView, viewHolder)) {
-            Log.e(TAG, "Start drag has been called but dragging is not enabled");
-            return;
-        }
-        if (viewHolder.itemView.getParent() != mRecyclerView) {
-            Log.e(TAG, "Start drag has been called with a view holder which is not a child of "
-                    + "the RecyclerView which is controlled by this ItemTouchHelper.");
-            return;
-        }
-        obtainVelocityTracker();
-        mDx = mDy = 0f;
-        select(viewHolder, ACTION_STATE_DRAG);
-    }
-
-    public void startSwipe(@NonNull ViewHolder viewHolder) {
-        if (!mCallback.hasSwipeFlag(mRecyclerView, viewHolder)) {
-            Log.e(TAG, "Start swipe has been called but swiping is not enabled");
-            return;
-        }
-        if (viewHolder.itemView.getParent() != mRecyclerView) {
-            Log.e(TAG, "Start swipe has been called with a view holder which is not a child of "
-                    + "the RecyclerView controlled by this ItemTouchHelper.");
-            return;
-        }
-        obtainVelocityTracker();
-        mDx = mDy = 0f;
-        select(viewHolder, ACTION_STATE_SWIPE);
-    }
-    private RecoverAnimation findAnimation(MotionEvent event) {
-        if (mRecoverAnimations.isEmpty()) {
-            return null;
-        }
-        View target = findChildView(event);
-        for (int i = mRecoverAnimations.size() - 1; i >= 0; i--) {
-            final RecoverAnimation anim = mRecoverAnimations.get(i);
-            if (anim.mViewHolder.itemView == target) {
-                return anim;
-            }
-        }
-        return null;
-    }
     private void updateDxDy(MotionEvent ev, int directionFlags, int pointerIndex) {
         final float x = ev.getX(pointerIndex);
         final float y = ev.getY(pointerIndex);
         // Calculate the distance moved
         mDx = x - mInitialTouchX;
         mDy = y - mInitialTouchY;
+
         if ((directionFlags & LEFT) == 0) {
             mDx = Math.max(0, mDx);
         }
@@ -990,104 +718,100 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             mDy = Math.min(0, mDy);
         }
 
-        if (null != mCallback) {
-            float dx = 0, dy = 0;
-            // if (mSelected != null) {
-                getSelectedDxDy(mTmpPosition);
-                dx = mTmpPosition[0];
-                dy = mTmpPosition[1];
-            // }
-
-            mCallback.onScroll(mRecyclerView, null, dx, dy, mActionState, true);
+        if ((directionFlags & (LEFT | RIGHT)) != 0) {
+            mOutDx = mDx;
+        } else {
+            mOutDx = 0;
+        }
+        if ((directionFlags & (UP | DOWN)) != 0) {
+            mOutDy = mDy;
+        } else {
+            mOutDy = 0;
         }
     }
-    private int swipeIfNecessary(ViewHolder viewHolder) {
-        if (mActionState == ACTION_STATE_DRAG) {
-            return 0;
-        }
-        final int originalMovementFlags = mCallback.getMovementFlags(mRecyclerView, viewHolder);
+    private int pagerIfNecessary() {
+        final int originalMovementFlags = mCallback.getMovementFlags(mRecyclerView);
         final int absoluteMovementFlags = mCallback.convertToAbsoluteDirection(
                 originalMovementFlags,
                 ViewCompat.getLayoutDirection(mRecyclerView));
         final int flags = (absoluteMovementFlags
-                & ACTION_MODE_SWIPE_MASK) >> (ACTION_STATE_SWIPE * DIRECTION_FLAG_COUNT);
+                & ACTION_MODE_SWIPE_MASK) >> (ACTION_STATE_PAGING * DIRECTION_FLAG_COUNT);
         if (flags == 0) {
             return 0;
         }
+
         final int originalFlags = (originalMovementFlags
-                & ACTION_MODE_SWIPE_MASK) >> (ACTION_STATE_SWIPE * DIRECTION_FLAG_COUNT);
-        int swipeDir;
+                & ACTION_MODE_SWIPE_MASK) >> (ACTION_STATE_PAGING * DIRECTION_FLAG_COUNT);
+        int pagerDir;
         if (Math.abs(mDx) > Math.abs(mDy)) {
-            if ((swipeDir = checkHorizontalSwipe(viewHolder, flags)) > 0) {
+            if ((pagerDir = checkHorizontalPager(flags)) > 0) {
                 // if swipe dir is not in original flags, it should be the relative direction
-                if ((originalFlags & swipeDir) == 0) {
+                if ((originalFlags & pagerDir) == 0) {
                     // convert to relative
-                    return Callback.convertToRelativeDirection(swipeDir,
+                    return Callback.convertToRelativeDirection(pagerDir,
                             ViewCompat.getLayoutDirection(mRecyclerView));
                 }
-                return swipeDir;
+                return pagerDir;
             }
-            if ((swipeDir = checkVerticalSwipe(viewHolder, flags)) > 0) {
-                return swipeDir;
+            if ((pagerDir = checkVerticalPager(flags)) > 0) {
+                return pagerDir;
             }
         } else {
-            if ((swipeDir = checkVerticalSwipe(viewHolder, flags)) > 0) {
-                return swipeDir;
+            if ((pagerDir = checkVerticalPager(flags)) > 0) {
+                return pagerDir;
             }
-            if ((swipeDir = checkHorizontalSwipe(viewHolder, flags)) > 0) {
+            if ((pagerDir = checkHorizontalPager(flags)) > 0) {
                 // if swipe dir is not in original flags, it should be the relative direction
-                if ((originalFlags & swipeDir) == 0) {
+                if ((originalFlags & pagerDir) == 0) {
                     // convert to relative
-                    return Callback.convertToRelativeDirection(swipeDir,
+                    return Callback.convertToRelativeDirection(pagerDir,
                             ViewCompat.getLayoutDirection(mRecyclerView));
                 }
-                return swipeDir;
+                return pagerDir;
             }
         }
         return 0;
     }
-    private int checkHorizontalSwipe(ViewHolder viewHolder, int flags) {
+    private int checkHorizontalPager(int flags) {
         if ((flags & (LEFT | RIGHT)) != 0) {
             final int dirFlag = mDx > 0 ? RIGHT : LEFT;
             if (mVelocityTracker != null && mActivePointerId > -1) {
                 mVelocityTracker.computeCurrentVelocity(PIXELS_PER_SECOND,
-                        mCallback.getSwipeVelocityThreshold(mMaxSwipeVelocity));
+                        mCallback.getPagerVelocityThreshold(mMaxPagerVelocity));
                 final float xVelocity = mVelocityTracker.getXVelocity(mActivePointerId);
                 final float yVelocity = mVelocityTracker.getYVelocity(mActivePointerId);
                 final int velDirFlag = xVelocity > 0f ? RIGHT : LEFT;
                 final float absXVelocity = Math.abs(xVelocity);
                 if ((velDirFlag & flags) != 0 && dirFlag == velDirFlag
-                        && absXVelocity >= mCallback.getSwipeEscapeVelocity(mSwipeEscapeVelocity)
+                        && absXVelocity >= mCallback.getPagerEscapeVelocity(mPagerEscapeVelocity)
                         && absXVelocity > Math.abs(yVelocity)) {
                     return velDirFlag;
                 }
             }
-            final float threshold = mRecyclerView.getWidth() * mCallback
-                    .getSwipeThreshold(viewHolder);
+            final float threshold = mRecyclerView.getWidth() * mCallback.getPagerThreshold();
             if ((flags & dirFlag) != 0 && Math.abs(mDx) > threshold) {
                 return dirFlag;
             }
         }
         return 0;
     }
-    private int checkVerticalSwipe(ViewHolder viewHolder, int flags) {
+    private int checkVerticalPager(int flags) {
         if ((flags & (UP | DOWN)) != 0) {
             final int dirFlag = mDy > 0 ? DOWN : UP;
             if (mVelocityTracker != null && mActivePointerId > -1) {
                 mVelocityTracker.computeCurrentVelocity(PIXELS_PER_SECOND,
-                        mCallback.getSwipeVelocityThreshold(mMaxSwipeVelocity));
+                        mCallback.getPagerVelocityThreshold(mMaxPagerVelocity));
                 final float xVelocity = mVelocityTracker.getXVelocity(mActivePointerId);
                 final float yVelocity = mVelocityTracker.getYVelocity(mActivePointerId);
                 final int velDirFlag = yVelocity > 0f ? DOWN : UP;
                 final float absYVelocity = Math.abs(yVelocity);
                 if ((velDirFlag & flags) != 0 && velDirFlag == dirFlag
-                        && absYVelocity >= mCallback.getSwipeEscapeVelocity(mSwipeEscapeVelocity)
+                        && absYVelocity >= mCallback.getPagerEscapeVelocity(mPagerEscapeVelocity)
                         && absYVelocity > Math.abs(xVelocity)) {
                     return velDirFlag;
                 }
             }
-            final float threshold = mRecyclerView.getHeight() * mCallback
-                    .getSwipeThreshold(viewHolder);
+            final float threshold = mRecyclerView.getHeight() * mCallback.getPagerThreshold();
             if ((flags & dirFlag) != 0 && Math.abs(mDy) > threshold) {
                 return dirFlag;
             }
@@ -1135,11 +859,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         private static final long DRAG_SCROLL_ACCELERATION_LIMIT_TIME_MS = 2000;
         private int mCachedMaxScrollSpeed = -1;
 
-        @SuppressWarnings("WeakerAccess")
-        @NonNull
-        public static ItemTouchUIUtil getDefaultUIUtil() {
-            return ItemTouchUIUtilImpl.INSTANCE;
-        }
+
         /**
          * Replaces a movement direction with its relative version by taking layout direction into
          * account.
@@ -1171,29 +891,6 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             return flags;
         }
 
-        public static int makeMovementFlags(int dragFlags, int swipeFlags) {
-            return makeFlag(ACTION_STATE_IDLE, swipeFlags | dragFlags)
-                    | makeFlag(ACTION_STATE_SWIPE, swipeFlags)
-                    | makeFlag(ACTION_STATE_DRAG, dragFlags);
-        }
-
-        @SuppressWarnings("WeakerAccess")
-        public static int makeFlag(int actionState, int directions) {
-            return directions << (actionState * DIRECTION_FLAG_COUNT);
-        }
-
-        public abstract int getMovementFlags(@NonNull RecyclerView recyclerView,
-                                             @NonNull ViewHolder viewHolder);
-
-        public abstract boolean isItemPagable(int pos);
-        public abstract int getCurrentPage();
-        public abstract int getNumberOfPages();
-
-        public abstract Object onPaginationStarted(int pos, int initialDirection);  // return BatchSwipeContext
-        public abstract void onPaging(int pos, float offsetX, float offsetY, boolean scrollingOrAnimation, Object batchSwipeContext);
-        public abstract void onPaginationFinished(int pos, int direction, Object batchSwipeContext);
-        public abstract void onSwipeFinished(int pos, boolean cancelled, int direction, Object batchSwipeContext);
-
         @SuppressWarnings("WeakerAccess")
         public int convertToAbsoluteDirection(int flags, int layoutDirection) {
             int masked = flags & RELATIVE_DIR_FLAGS;
@@ -1213,26 +910,32 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             }
             return flags;
         }
-        final int getAbsoluteMovementFlags(RecyclerView recyclerView,
-                                           ViewHolder viewHolder) {
-            final int flags = getMovementFlags(recyclerView, viewHolder);
+
+        final int getAbsoluteMovementFlags(RecyclerView recyclerView) {
+            final int flags = getMovementFlags(recyclerView);
             return convertToAbsoluteDirection(flags, ViewCompat.getLayoutDirection(recyclerView));
         }
-        boolean hasDragFlag(RecyclerView recyclerView, ViewHolder viewHolder) {
-            final int flags = getAbsoluteMovementFlags(recyclerView, viewHolder);
-            return (flags & ACTION_MODE_DRAG_MASK) != 0;
-        }
-        boolean hasSwipeFlag(RecyclerView recyclerView,
-                             ViewHolder viewHolder) {
-            final int flags = getAbsoluteMovementFlags(recyclerView, viewHolder);
-            return (flags & ACTION_MODE_SWIPE_MASK) != 0;
+
+        public static int makeMovementFlags(int dragFlags, int swipeFlags) {
+            return makeFlag(ACTION_STATE_IDLE, swipeFlags | dragFlags)
+                    | makeFlag(ACTION_STATE_PAGING, swipeFlags);
         }
 
         @SuppressWarnings("WeakerAccess")
-        public boolean canDropOver(@NonNull RecyclerView recyclerView, @NonNull ViewHolder current,
-                                   @NonNull ViewHolder target) {
-            return true;
+        public static int makeFlag(int actionState, int directions) {
+            return directions << (actionState * DIRECTION_FLAG_COUNT);
         }
+
+        public abstract int getMovementFlags(@NonNull RecyclerView recyclerView);
+
+
+        public abstract int getPage();
+        public abstract int getNumberOfPages();
+
+        public abstract boolean shouldStartPager(float x, float y);
+        public abstract void beforePaging(float x, float y, float dx, float dy, int orientation);
+        public abstract void onPaging(float dx, float dy, boolean draggingOrFlying);
+        public abstract void onPagerFinished(boolean recovered, int direction, float offsetX, float offsetY);
 
         /**
          * When finding views under a dragged view, by default, ItemTouchHelper searches for views
@@ -1249,30 +952,28 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
          * Returns the fraction that the user should move the View to be considered as swiped.
          * The fraction is calculated with respect to RecyclerView's bounds.
          * <p>
-         * Default value is .5f, which means, to swipe a View, user must move the View at least
+         * Default value is .5f, which means, to paging, user must move with the distance at least
          * half of RecyclerView's width or height, depending on the swipe direction.
          *
-         * @param viewHolder The ViewHolder that is being dragged.
          * @return A float value that denotes the fraction of the View size. Default value
          * is .5f .
          */
         @SuppressWarnings("WeakerAccess")
-        public float getSwipeThreshold(@NonNull ViewHolder viewHolder) {
+        public float getPagerThreshold() {
             return .5f;
         }
 
 
         @SuppressWarnings("WeakerAccess")
-        public float getSwipeEscapeVelocity(float defaultValue) {
+        public float getPagerEscapeVelocity(float defaultValue) {
             return defaultValue;
         }
 
         @SuppressWarnings("WeakerAccess")
-        public float getSwipeVelocityThreshold(float defaultValue) {
+        public float getPagerVelocityThreshold(float defaultValue) {
             return defaultValue;
         }
 
-        public abstract void onSwiped(RecyclerView recyclerView, @NonNull ViewHolder viewHolder, int direction);
 
 
         private int getMaxDragScroll(RecyclerView recyclerView) {
@@ -1283,20 +984,16 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             return mCachedMaxScrollSpeed;
         }
 
-        public void onScroll(@NonNull RecyclerView recyclerView,
-                             @NonNull ViewHolder viewHolder, float dX, float dY, int actionState, boolean scrollingOrAnimation) {
-        }
+
 
         @SuppressWarnings("WeakerAccess")
         public long getAnimationDuration(@NonNull RecyclerView recyclerView, int animationType,
                                          float animateDx, float animateDy) {
             final RecyclerView.ItemAnimator itemAnimator = recyclerView.getItemAnimator();
             if (itemAnimator == null) {
-                return animationType == ANIMATION_TYPE_DRAG ? DEFAULT_DRAG_ANIMATION_DURATION
-                        : DEFAULT_SWIPE_ANIMATION_DURATION;
+                return DEFAULT_SWIPE_ANIMATION_DURATION;
             } else {
-                return animationType == ANIMATION_TYPE_DRAG ? itemAnimator.getMoveDuration()
-                        : itemAnimator.getRemoveDuration();
+                return itemAnimator.getRemoveDuration();
             }
         }
 
@@ -1326,70 +1023,75 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         }
     }
 
-    private class PagerGestureListener extends GestureDetector.SimpleOnGestureListener {
+    private class PagerGestureListener implements GestureDetector.OnGestureListener {
 
         PagerGestureListener() {
         }
+
+        public boolean onSingleTapUp(MotionEvent e) {
+            return false;
+        }
+
+        public void onLongPress(MotionEvent e) {
+        }
+
         @Override
         public boolean onDown(MotionEvent e) {
             return true;
         }
 
         @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2,
-                                float distanceX, float distanceY) {
-            return false;
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            if (mInPagableArea) {
+                float dx = e2.getX() - e1.getX();
+                float dy = e2.getY() - e1.getY();
+                if (mInPaging == false) {
+                    float absX = Math.abs(dx);
+                    float absY = Math.abs(dy);
+                    if (absX > absY) {
+                        mInPaging = true;
+                    } else {
+                        // Cancel this dragging
+                        mInPagableArea = false;
+                    }
+                }
+
+                if (mInPaging) {
+                    final int activePointerIndex = e2.findPointerIndex(mActivePointerId);
+                    if (activePointerIndex >= 0) {
+                        // checkSelectForSwipe(action, event, activePointerIndex);
+                    }
+
+                    if (activePointerIndex >= 0) {
+                        updateDxDy(e2, mSelectedFlags, activePointerIndex);
+                    }
+
+                    mCallback.onPaging(mOutDx, mOutDy, true);
+                }
+
+            }
+            return mInPagableArea && mInPaging;
         }
 
         @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
-                               float velocityY) {
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             return false;
         }
 
         @Override
         public void onShowPress(MotionEvent e) {
-            View child = findChildView(e);
-            if (child != null) {
-                ViewHolder vh = mRecyclerView.getChildViewHolder(child);
-                if (vh != null) {
-                    if (!mCallback.hasDragFlag(mRecyclerView, vh)) {
-                        return;
-                    }
-                    int pointerId = e.getPointerId(0);
-                    // Long press is deferred.
-                    // Check w/ active pointer id to avoid selecting after motion
-                    // event is canceled.
-                    if (pointerId == mActivePointerId) {
-                        final int index = e.findPointerIndex(mActivePointerId);
-                        final float x = e.getX(index);
-                        final float y = e.getY(index);
-                        mInitialTouchX = x;
-                        mInitialTouchY = y;
-                        mInitialSwipeDir = 0;
-                        mDx = mDy = 0f;
-                        if (DEBUG) {
-                            Log.d(TAG,
-                                    "onlong press: x:" + mInitialTouchX + ",y:" + mInitialTouchY);
-                        }
-
-                    }
-                }
-            }
         }
-
-
     }
-    private static class RecoverAnimation implements Animator.AnimatorListener {
+
+    private abstract static class RecoverAnimation implements Animator.AnimatorListener {
         final float mStartDx;
         final float mStartDy;
         final float mTargetX;
         final float mTargetY;
-        final ViewHolder mViewHolder;
         final int mActionState;
         private final ValueAnimator mValueAnimator;
         final int mAnimationType;
-        boolean mIsPendingCleanup;
+        // boolean mIsPendingCleanup;
         float mX;
         float mY;
         // if user starts touching a recovering view, we put it into interaction mode again,
@@ -1397,11 +1099,11 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         boolean mOverridden = false;
         boolean mEnded = false;
         private float mFraction;
-        RecoverAnimation(ViewHolder viewHolder, int animationType,
+        RecoverAnimation( int animationType,
                          int actionState, float startDx, float startDy, float targetX, float targetY) {
             mActionState = actionState;
             mAnimationType = animationType;
-            mViewHolder = viewHolder;
+
             mStartDx = startDx;
             mStartDy = startDy;
             mTargetX = targetX;
@@ -1414,7 +1116,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
                             setFraction(animation.getAnimatedFraction());
                         }
                     });
-            mValueAnimator.setTarget(viewHolder.itemView);
+            // mValueAnimator.setTarget(viewHolder.itemView);
             mValueAnimator.addListener(this);
             setFraction(0f);
         }
@@ -1422,7 +1124,7 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
             mValueAnimator.setDuration(duration);
         }
         public void start() {
-            mViewHolder.setIsRecyclable(false);
+            // mViewHolder.setIsRecyclable(false);
             mValueAnimator.start();
         }
         public void cancel() {
@@ -1430,6 +1132,11 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
         }
         public void setFraction(float fraction) {
             mFraction = fraction;
+            if (DEBUG) {
+                Log.i(TAG, "setFraction: " + fraction);
+            }
+            update();
+            onUpdate(mX, mY);
         }
         /**
          * We run updates on onDraw method but use the fraction from animator callback.
@@ -1437,23 +1144,26 @@ public class RecyclerViewPager extends RecyclerView.ItemDecoration
          */
         public void update() {
             if (mStartDx == mTargetX) {
-                mX = mViewHolder.itemView.getTranslationX();
+                // mX = mViewHolder.itemView.getTranslationX();
             } else {
                 mX = mStartDx + mFraction * (mTargetX - mStartDx);
             }
             if (mStartDy == mTargetY) {
-                mY = mViewHolder.itemView.getTranslationY();
+                // mY = mViewHolder.itemView.getTranslationY();
             } else {
                 mY = mStartDy + mFraction * (mTargetY - mStartDy);
             }
         }
+
+        public abstract void onUpdate(float x, float y);
+
         @Override
         public void onAnimationStart(Animator animation) {
         }
         @Override
         public void onAnimationEnd(Animator animation) {
             if (!mEnded) {
-                mViewHolder.setIsRecyclable(true);
+                // mViewHolder.setIsRecyclable(true);
             }
             mEnded = true;
         }

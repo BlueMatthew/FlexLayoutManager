@@ -503,7 +503,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
             int[] displayInfo = FlexLayoutHelper.makeDisplayInfo(this, mLayoutCallback, page + mMinPageOffset, page + mMaxPageOffset, mPagingOffsetX);
             int[] data = filterItems(mNativeLayout, displayInfo);
 
-            Log.i("Flex", "fillRect page=" + page + "min=" + mMaxPageOffset + " max=" + mMaxPageOffset);
+            Log.i("Flex", "fillRect page=" + page + " min=" + mMaxPageOffset + " max=" + mMaxPageOffset);
 
             List<LayoutItem> changingStickyItems = new ArrayList<>();
             visibleItems = FlexLayoutHelper.unserializeLayoutItemAndStickyItems(data, changingStickyItems);

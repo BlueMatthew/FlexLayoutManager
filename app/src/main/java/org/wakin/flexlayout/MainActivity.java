@@ -8,6 +8,8 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.util.Log;
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
@@ -35,8 +37,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     private boolean mStackedStickyHeaders = true;
     private RecyclerView mRecyclerView;
     private PaginationAdapter mAdapter;
-    BatchSwipeItemTouchCallback mCallback;
-    ItemTouchHelper mTouchHelper;
 
     private int mPendingPageStart = 0;
     private int mPendingPageCount = 1;
@@ -48,6 +48,173 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
     private Rect mStickyItemFrame = new Rect();
 
     private MainActivityDataSource mDataSource = null;
+
+
+    private RecyclerViewPager.Callback mPagerCallback = new RecyclerViewPager.Callback() {
+        @Override
+        public int getMovementFlags(@NonNull RecyclerView recyclerView) {
+
+            int dragFlags = 0;
+
+            return makeMovementFlags(dragFlags, RecyclerViewPager.LEFT | RecyclerViewPager.RIGHT);
+        }
+
+        @Override
+        public int getPage() {
+            return mDataSource.getPage();
+        }
+
+        @Override
+        public int getNumberOfPages() {
+            return mDataSource.getNumberOfPages();
+        }
+
+        @Override
+        public boolean shouldStartPager(float x, float y) {
+            if (mIsCatBarStickyMode) {
+                return y >= mStickyItemFrame.height() + mNavFrame.height();
+            } else {
+                int pos = mDataSource.getMinPagablePosition();
+                if (pos == 0) {
+                    return true;
+                } else {
+                    --pos;
+
+                    ViewHolder viewHolder = mRecyclerView.findViewHolderForAdapterPosition(pos);
+                    if (viewHolder == null || viewHolder.itemView == null) {
+                        return false;
+                    }
+
+                    return y > viewHolder.itemView.getBottom();
+                }
+            }
+
+            // return false;
+        }
+
+        @Override
+        public void beforePaging(float x, float y, float dx, float dy, int orientation) {
+
+        }
+
+        @Override
+        public void onPaging(float dx, float dy, boolean draggingOrFlying) {
+            Log.i("Pager", "onPaging dx=" + dx + " dy=" + dy + " dragging=" + (draggingOrFlying ? "1" : "0"));
+
+
+            dy = 0;
+            float absX = java.lang.Math.abs(dx);
+            if (true/*absX < 50 || absX > 1070*/) {
+                Log.i("ITH", String.format("TouchMove: offsetX=%f offsetY=%f scrollingOrAnimation=%d", dx, dy, draggingOrFlying ? 1 : 0));
+                // Log.i("ITH", String.format("onPaging offsetX=%f offsetY=%f scrollingOrAnimation=%d", offsetX, offsetY, scrollingOrAnimation ? 1 : 0));
+            }
+            if (dy != 0) {
+                // Log.i("ITH", String.format("onPaging offsetX=%f offsetY=%f scrollingOrAnimation=%d", offsetX, offsetY, scrollingOrAnimation ? 1 : 0));
+            }
+
+            final boolean inSticky = mIsCatBarStickyMode;
+            final int page = mDataSource.getPage();
+
+            int pageStart = mPendingPageStart;
+            int pageEnd = mPendingPageStart + mPendingPageCount - 1;
+            int oldPageEnd = pageEnd;
+
+            if (draggingOrFlying && dx != 0f) {
+                // During scrolling, user may change direction and need to show new pageview in another direction
+                int pageDelta = dx > 0 ? (int)Math.ceil(dx / mRecyclerView.getWidth()) : (int)Math.floor(dx / mRecyclerView.getWidth());
+                pageStart = Math.min(pageStart, page + pageDelta);
+                pageEnd = Math.max(pageEnd, page + pageDelta);
+            }
+
+            boolean layoutNeeded = false;
+            if (pageStart != mPendingPageStart || oldPageEnd != pageEnd) {
+                for (int pageIndex = pageStart; pageIndex <= pageEnd; ++pageIndex) {
+                    if (pageIndex < mPendingPageStart || pageIndex > oldPageEnd) {
+                        // Invalidate layout of pageIndex
+                    }
+                }
+                mPendingPageStart = pageStart;
+                mPendingPageCount = pageEnd - pageStart + 1;
+
+                layoutNeeded = true;
+            }
+
+            RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
+            if (layoutManager instanceof FlexLayoutManager) {
+                FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
+                if (layoutNeeded) {
+                    // flexLayoutManager.
+                }
+                // flexLayoutManager.setPagingOffset((int)offsetX, (int)offsetY);
+                // mRecyclerView.invalidate();
+                // mRecyclerView.getAdapter().
+                // mRecyclerView.scrollBy((int)offsetX, (int)offsetY);
+
+                Bundle bundle = new Bundle();
+                bundle.putInt("offsetX", (int)dx);
+                bundle.putInt("offsetY", (int)dy);
+                mRecyclerView.performAccessibilityAction(1, bundle);
+            }
+
+        }
+
+        @Override
+        public void onPagerFinished(boolean recovered, int direction, float offsetX, float offsetY) {
+            if (recovered) {
+                return;
+            }
+
+            final boolean inSticky = mIsCatBarStickyMode;
+
+            Log.i("ITH", String.format("onPaginationFinished, inSticky=%d", (inSticky ? 1 : 0)));
+
+            final int page = mDataSource.getPage();
+            // Switch Pages
+            int newPage = page;
+            if (direction == RecyclerViewPager.LEFT) {
+                ++newPage;
+            } else if (direction == RecyclerViewPager.RIGHT) {
+                --newPage;
+            }
+
+            Point newContentOffset = FlexLayoutManager.INVALID_CONTENT_OFFSET;
+            if (mIsCatBarStickyMode) {
+                // Save Current RecyclerViewState first
+                RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
+                if (layoutManager instanceof FlexLayoutManager) {
+                    FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
+                    Point contentOffset = flexLayoutManager.getContentOffset();
+                    Bundle bundle = new Bundle();
+                    bundle.putInt("contentOffsetX", contentOffset.x);
+                    bundle.putInt("contentOffsetY", contentOffset.y);
+
+                    mRecyclerViewStates.put(new Integer(page), bundle);
+                    Log.i("ITH", "SaveState for Page:" + Integer.toString(page) + " " + bundle.toString());
+                }
+
+                newContentOffset = getContentOffsetForPage(newPage);
+            }
+
+            mDataSource.setPage(newPage);
+
+            mPendingPageStart = mDataSource.getPage();
+            mPendingPageCount = 1;
+
+            RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
+            if (layoutManager instanceof FlexLayoutManager) {
+                FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
+                if (FlexLayoutManager.INVALID_CONTENT_OFFSET != newContentOffset) {
+                    // mRecyclerView.scrollTo(newContentOffset.x, newContentOffset.y);
+                    // mRecyclerView.scrollP
+                    // flexLayoutManager.scrollToPositionWithOffset(0, newContentOffset.y);
+                    flexLayoutManager.setContentOffset(newContentOffset);
+                }
+                flexLayoutManager.clearPagingOffset();
+            }
+        }
+    };
+
+    private RecyclerViewPager mPager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,11 +248,9 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         mRecyclerView.setPadding(padding.left, padding.top, padding.right, padding.bottom);
 
         mRecyclerView.setItemAnimator(null);
-        // Create ItemTouchCallback
-        mCallback = new BatchSwipeItemTouchCallback(mAdapter);
-        //Create ItemtouchHelper
-        mTouchHelper = new ItemTouchHelper(mCallback, R.id.pagingFlag);
-        mTouchHelper.attachToRecyclerView(mRecyclerView);
+
+        mPager = new RecyclerViewPager(mPagerCallback, R.id.pagingFlag);
+        mPager.attachToRecyclerView(mRecyclerView);
 
         setFlexLayoutManager();
         // setLinearLayoutManager();
@@ -134,9 +299,9 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
 
     @Override
     public void onDestroy() {
-        mCallback = null;
-        mTouchHelper.attachToRecyclerView(null);
-        mTouchHelper = null;
+        mPager.attachToRecyclerView(null);
+        mPagerCallback = null;
+        mPager = null;
 
         mRecyclerView.clearOnScrollListeners();
 
@@ -207,7 +372,7 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         }
     }
 
-    class PaginationAdapter extends RecyclerView.Adapter<FlexViewHolder> implements BatchSwipeItemTouchCallback.RecyclerViewAdapter {
+    class PaginationAdapter extends RecyclerView.Adapter<FlexViewHolder> {
 
         public PaginationAdapter() {
         }
@@ -267,147 +432,6 @@ public class MainActivity extends AppCompatActivity implements LayoutCallback {
         @Override
         public void onViewAttachedToWindow(FlexViewHolder holder) {
             super.onViewAttachedToWindow(holder);
-        }
-
-        @Override
-        public int getCurrentPage() {
-            return mDataSource == null ? 0 : mDataSource.getPage();
-        }
-
-        @Override
-        public int getNumberOfPages() {
-            return mDataSource == null ? 1 : mDataSource.getNumberOfPages();
-        }
-
-        @Override
-        public boolean isItemPagable(int pos) {
-            int minPagablePos = mDataSource.getMinPagablePosition();
-            return minPagablePos == RecyclerView.NO_POSITION ? false : (pos >= minPagablePos);
-        }
-
-        @Override
-        public Object onPaginationStarted(int pos, int initialDirection) {
-            Log.i("ITH", "onPaginationStarted");
-
-            int page = mDataSource.getPage();
-
-
-            return null;
-        }
-
-        @Override
-        public void onPaging(int pos, float offsetX, float offsetY, boolean scrollingOrAnimation, Object batchSwipeContext) {
-
-            float absX = java.lang.Math.abs(offsetX);
-            if (true/*absX < 50 || absX > 1070*/) {
-                Log.i("ITH", String.format("TouchMove: offsetX=%f offsetY=%f scrollingOrAnimation=%d", offsetX, offsetY, scrollingOrAnimation ? 1 : 0));
-                // Log.i("ITH", String.format("onPaging offsetX=%f offsetY=%f scrollingOrAnimation=%d", offsetX, offsetY, scrollingOrAnimation ? 1 : 0));
-            }
-            if (offsetY != 0) {
-                // Log.i("ITH", String.format("onPaging offsetX=%f offsetY=%f scrollingOrAnimation=%d", offsetX, offsetY, scrollingOrAnimation ? 1 : 0));
-            }
-
-            final boolean inSticky = mIsCatBarStickyMode;
-            final int page = mDataSource.getPage();
-
-            int pageStart = mPendingPageStart;
-            int pageEnd = mPendingPageStart + mPendingPageCount - 1;
-            int oldPageEnd = pageEnd;
-
-            if (scrollingOrAnimation && offsetX != 0f) {
-                // During scrolling, user may change direction and need to show new pageview in another direction
-                int pageDelta = offsetX > 0 ? (int)Math.ceil(offsetX / mRecyclerView.getWidth()) : (int)Math.floor(offsetX / mRecyclerView.getWidth());
-                pageStart = Math.min(pageStart, page + pageDelta);
-                pageEnd = Math.max(pageEnd, page + pageDelta);
-            }
-
-            boolean layoutNeeded = false;
-            if (pageStart != mPendingPageStart || oldPageEnd != pageEnd) {
-                for (int pageIndex = pageStart; pageIndex <= pageEnd; ++pageIndex) {
-                    if (pageIndex < mPendingPageStart || pageIndex > oldPageEnd) {
-                        // Invalidate layout of pageIndex
-                    }
-                }
-                mPendingPageStart = pageStart;
-                mPendingPageCount = pageEnd - pageStart + 1;
-
-                layoutNeeded = true;
-            }
-
-            RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
-            if (layoutManager instanceof FlexLayoutManager) {
-                FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-                if (layoutNeeded) {
-                    // flexLayoutManager.
-                }
-                // flexLayoutManager.setPagingOffset((int)offsetX, (int)offsetY);
-                // mRecyclerView.invalidate();
-                // mRecyclerView.getAdapter().
-                // mRecyclerView.scrollBy((int)offsetX, (int)offsetY);
-
-                Bundle bundle = new Bundle();
-                bundle.putInt("offsetX", (int)offsetX);
-                bundle.putInt("offsetY", (int)offsetY);
-                mRecyclerView.performAccessibilityAction(1, bundle);
-            }
-        }
-
-        public void onPaginationFinished(int pos, int direction, Object batchSwipeContext) {
-            final boolean inSticky = mIsCatBarStickyMode;
-
-            Log.i("ITH", String.format("onPaginationFinished, inSticky=%d", (inSticky ? 1 : 0)));
-
-            final int page = mDataSource.getPage();
-            // Switch Pages
-            int newPage = page;
-            if (direction == ItemTouchHelper.LEFT) {
-                ++newPage;
-            } else if (direction == ItemTouchHelper.RIGHT) {
-                --newPage;
-            }
-
-            Point newContentOffset = FlexLayoutManager.INVALID_CONTENT_OFFSET;
-            if (mIsCatBarStickyMode) {
-                // Save Current RecyclerViewState first
-                RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
-                if (layoutManager instanceof FlexLayoutManager) {
-                    FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-                    Point contentOffset = flexLayoutManager.getContentOffset();
-                    Bundle bundle = new Bundle();
-                    bundle.putInt("contentOffsetX", contentOffset.x);
-                    bundle.putInt("contentOffsetY", contentOffset.y);
-
-                    mRecyclerViewStates.put(new Integer(page), bundle);
-                    Log.i("ITH", "SaveState for Page:" + Integer.toString(page) + " " + bundle.toString());
-                }
-
-                newContentOffset = getContentOffsetForPage(newPage);
-            }
-
-            mDataSource.setPage(newPage);
-
-            mPendingPageStart = mDataSource.getPage();
-            mPendingPageCount = 1;
-
-            RecyclerView.LayoutManager layoutManager = mRecyclerView.getLayoutManager();
-            if (layoutManager instanceof FlexLayoutManager) {
-                FlexLayoutManager flexLayoutManager = (FlexLayoutManager)layoutManager;
-                if (FlexLayoutManager.INVALID_CONTENT_OFFSET != newContentOffset) {
-                    // mRecyclerView.scrollTo(newContentOffset.x, newContentOffset.y);
-                    // mRecyclerView.scrollP
-                    // flexLayoutManager.scrollToPositionWithOffset(0, newContentOffset.y);
-                    flexLayoutManager.setContentOffset(newContentOffset);
-                }
-                flexLayoutManager.clearPagingOffset();
-            }
-
-            // notifyItemChanged(posCat, PRELOAD_FLAG);
-        }
-
-        public void onSwipeFinished(int pos, boolean cancelled, int direction, Object batchSwipeContext) {
-            // Log.i("ITH", "onSwipeFinished");
-
-            // removePaginationRecyclerView(pos, false);
         }
     }
 
