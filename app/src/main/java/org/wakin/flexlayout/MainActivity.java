@@ -17,11 +17,11 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
-import org.wakin.flexlayout.LayoutManager.LayoutCallback;
-import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
-import org.wakin.flexlayout.LayoutManager.SectionPosition;
-import org.wakin.flexlayout.LayoutManager.Graphics.Size;
+import org.wakin.flexlayout.layoutmanager.graphics.Insets;
+import org.wakin.flexlayout.layoutmanager.LayoutCallback;
+import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
+import org.wakin.flexlayout.layoutmanager.SectionPosition;
+import org.wakin.flexlayout.layoutmanager.graphics.Size;
 
 import java.util.List;
 import java.util.HashMap;

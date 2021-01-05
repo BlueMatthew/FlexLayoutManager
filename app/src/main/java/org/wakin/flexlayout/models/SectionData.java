@@ -2,7 +2,7 @@ package org.wakin.flexlayout.models;
 
 import android.util.Log;
 
-import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
+import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 
 import java.util.ArrayList;
 import java.util.List;
