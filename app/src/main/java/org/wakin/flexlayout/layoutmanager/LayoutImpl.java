@@ -1,14 +1,14 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.layoutmanager;
 
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.view.View;
 
-import org.wakin.flexlayout.LayoutManager.Elements.FlexFlowSection;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexSection;
-import org.wakin.flexlayout.LayoutManager.Elements.FlexWaterfallSection;
+import org.wakin.flexlayout.layoutmanager.elements.FlexFlowSection;
+import org.wakin.flexlayout.layoutmanager.elements.FlexItem;
+import org.wakin.flexlayout.layoutmanager.elements.FlexSection;
+import org.wakin.flexlayout.layoutmanager.elements.FlexWaterfallSection;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 

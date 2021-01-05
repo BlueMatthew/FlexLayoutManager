@@ -19,7 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
-import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
+import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
 import org.wakin.flexlayout.cells.ItemView;
 
 import java.io.InputStream;

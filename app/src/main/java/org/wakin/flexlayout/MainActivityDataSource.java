@@ -13,10 +13,10 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
-import org.wakin.flexlayout.LayoutManager.FlexLayoutManager;
-import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
-import org.wakin.flexlayout.LayoutManager.SectionPosition;
-import org.wakin.flexlayout.LayoutManager.Graphics.Size;
+import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
+import org.wakin.flexlayout.layoutmanager.graphics.Insets;
+import org.wakin.flexlayout.layoutmanager.SectionPosition;
+import org.wakin.flexlayout.layoutmanager.graphics.Size;
 import org.wakin.flexlayout.cells.ItemView;
 import org.wakin.flexlayout.models.PageData;
 import org.wakin.flexlayout.models.PageFixedData;
@@ -80,7 +80,7 @@ public class MainActivityDataSource {
             {20, 2},
             {9, 0},
             {20, 0},
-            {12, 0},
+            {},
             {2, 0},
             {15, 0},
             {1, 0},
@@ -89,7 +89,7 @@ public class MainActivityDataSource {
 
     public int[] STICKY_SECTIONS = {0, 2};
 
-    public int[] ITEM_HEIGHT_IN_SECTION = {120, 90, 90, 90, 50, 160, 120};
+    public int[] ITEM_HEIGHT_IN_SECTION = {100, 90, 90, 90, 50, 160, 120};
     public int[] ITEM_HEIGHT_ITEM2 = {120};
     public int ITEM_HEIGHT_FULL_SPAN = 60;
 
@@ -560,18 +560,24 @@ public class MainActivityDataSource {
         int offsetBase = NUM_OF_ITEMS_IN_SECTION_FOR_FIXED_PART.length;
         for (int page = 0; page < NUM_OF_ITEMS_IN_SECTION_FOR_PAGES.length; page++) {
             PageData pageData = mPages.get(page);
-            section = pageData.getPageSection(0);
 
-            section.setColumns(2);
-            section.setWaterfallMode(true);
+            if (pageData.getNumberOfPageSections() > 0) {
 
-            int[] itemHeights1 = {80, 145, 135, 150, 160, 175, 165, 180};
-            initializeItems(page, section, ITEM_TEXT_ITEM, dataSourceColors, itemHeights1);
+                section = pageData.getPageSection(0);
 
-            section = pageData.getPageSection(1);
-            section.setColumns(3);
-            int[] itemHeights2 = ITEM_HEIGHT_ITEM2;
-            initializeItems(page, section, ITEM_TEXT_ITEM2, dataSourceColors, itemHeights2);
+                section.setColumns(2);
+                section.setWaterfallMode(true);
+
+                int[] itemHeights1 = {80, 145, 135, 150, 160, 175, 165, 180};
+                initializeItems(page, section, ITEM_TEXT_ITEM, dataSourceColors, itemHeights1);
+            }
+
+            if (pageData.getNumberOfPageSections() > 1) {
+                section = pageData.getPageSection(1);
+                section.setColumns(3);
+                int[] itemHeights2 = ITEM_HEIGHT_ITEM2;
+                initializeItems(page, section, ITEM_TEXT_ITEM2, dataSourceColors, itemHeights2);
+            }
 
             pageData.calcItemCount();
         }

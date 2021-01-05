@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.layoutmanager;
 
 import android.content.Context;
 import android.graphics.Point;

@@ -1,8 +1,8 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.layoutmanager;
 
 import android.graphics.Rect;
 
-import org.wakin.flexlayout.LayoutManager.Elements.FlexItem;
+import org.wakin.flexlayout.layoutmanager.elements.FlexItem;
 
 import java.util.List;
 

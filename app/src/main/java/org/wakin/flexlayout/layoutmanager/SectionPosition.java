@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.layoutmanager;
 
 public class SectionPosition implements Comparable<SectionPosition> {
     public int section;

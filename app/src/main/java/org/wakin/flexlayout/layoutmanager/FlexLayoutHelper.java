@@ -1,10 +1,10 @@
-package org.wakin.flexlayout.LayoutManager;
+package org.wakin.flexlayout.layoutmanager;
 
 import android.graphics.Point;
 import android.graphics.Rect;
 
-import org.wakin.flexlayout.LayoutManager.Graphics.Insets;
-import org.wakin.flexlayout.LayoutManager.Graphics.Size;
+import org.wakin.flexlayout.layoutmanager.graphics.Insets;
+import org.wakin.flexlayout.layoutmanager.graphics.Size;
 
 import java.util.ArrayList;
 import java.util.List;
