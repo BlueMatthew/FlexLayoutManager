@@ -1,4 +1,4 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -13,15 +13,16 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
+import org.wakin.flexlayout.R;
 import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 import org.wakin.flexlayout.layoutmanager.impl.SectionPosition;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
-import org.wakin.flexlayout.cells.ItemView;
-import org.wakin.flexlayout.models.PageData;
-import org.wakin.flexlayout.models.PageFixedData;
-import org.wakin.flexlayout.models.SectionData;
-import org.wakin.flexlayout.models.CellData;
+import org.wakin.flexlayout.app.cells.ItemView;
+import org.wakin.flexlayout.app.models.PageData;
+import org.wakin.flexlayout.app.models.PageFixedData;
+import org.wakin.flexlayout.app.models.SectionData;
+import org.wakin.flexlayout.app.models.CellData;
 
 import java.util.ArrayList;
 import java.util.List;

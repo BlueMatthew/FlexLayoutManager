@@ -6,7 +6,7 @@
     android:layout_height="160dp"
     android:gravity="start">
 
-    <org.wakin.flexlayout.NetImageView
+    <org.wakin.flexlayout.app.NetImageView
         android:id="@+id/netImageView"
         android:layout_width="0dp"
         android:layout_height="match_parent"

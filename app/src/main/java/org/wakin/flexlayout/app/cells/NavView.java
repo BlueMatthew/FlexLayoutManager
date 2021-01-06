@@ -1,10 +1,8 @@
-package org.wakin.flexlayout.cells;
+package org.wakin.flexlayout.app.cells;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.view.View;
 
-import androidx.annotation.NonNull;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 

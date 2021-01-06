@@ -4,7 +4,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
-import org.wakin.flexlayout.util.Comparator;
+import org.wakin.flexlayout.app.util.Comparator;
 
 public class FlexItem implements Comparable<FlexItem> {
 

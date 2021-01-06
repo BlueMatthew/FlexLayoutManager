@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.cells;
+package org.wakin.flexlayout.app.cells;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -6,16 +6,17 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import org.wakin.flexlayout.NetImageView;
+import org.wakin.flexlayout.app.NetImageView;
 import org.wakin.flexlayout.R;
-import org.wakin.flexlayout.models.CellData;
+import org.wakin.flexlayout.app.models.CellData;
 
-public class CategoryBarView extends ViewGroup {
+public class ItemView extends ViewGroup {
 
     public static final int HORIZONTAL = 0;
     public static final int VERTICAL = 1;
@@ -27,17 +28,17 @@ public class CategoryBarView extends ViewGroup {
     int mUpdateId = 0;
 
 
-    public CategoryBarView(Context context) {
+    public ItemView(Context context) {
         super(context);
 
         initChildViews();
     }
 
-    public CategoryBarView(Context context, AttributeSet attrs) {
+    public ItemView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public CategoryBarView(Context context, AttributeSet attrs, int defStyle) {
+    public ItemView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
         initChildViews();
@@ -61,6 +62,8 @@ public class CategoryBarView extends ViewGroup {
 
         mUpdateId++;
 
+        Log.i("Flex", "Start loading cell: " + cellData.text);
+
         setBackgroundColor(cellData.backgroundColor);
 
        // setViewBorderColor(holder.itemView, getItemForegroundColor(item + getCatIndex()));
@@ -80,7 +83,6 @@ public class CategoryBarView extends ViewGroup {
                 if (!cellData.isLoaded()) {
                     // first display
                     cellData.startLoading();
-
                     setImageViewColorDelayed(cellData.imageBackgroundColor, cellData.backgroundColor, cellData.getRemainingLoadingTime());
                 } else {
                     mImageView.setBackgroundColor(cellData.imageBackgroundColor);
@@ -91,13 +93,14 @@ public class CategoryBarView extends ViewGroup {
         }
     }
 
-    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor, long delayedTime) {
+    private void setImageViewColorDelayed(final int imageColor, final int backgroundColor, final long delayedTime) {
         final int updateId = mUpdateId;
 
         setViewBorder(mImageView, imageColor);
         mLoadingView.setText("Loading...");
         mLoadingView.setTextColor(reverseColor(backgroundColor));
 
+        // int delayedTime = 3000 + (int)(Math.random() * 1500);
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override
@@ -247,12 +250,12 @@ public class CategoryBarView extends ViewGroup {
     }
 
     @Override
-    protected LayoutParams generateLayoutParams(LayoutParams p) {
+    protected ViewGroup.LayoutParams generateLayoutParams(ViewGroup.LayoutParams p) {
         return new LayoutParams(p);
     }
 
     @Override
-    protected boolean checkLayoutParams(LayoutParams p) {
+    protected boolean checkLayoutParams(ViewGroup.LayoutParams p) {
         return p instanceof LayoutParams;
     }
 

@@ -12,8 +12,8 @@ import org.wakin.flexlayout.layoutmanager.impl.elements.FlexFlowSection;
 import org.wakin.flexlayout.layoutmanager.impl.elements.FlexItem;
 import org.wakin.flexlayout.layoutmanager.impl.elements.FlexSection;
 import org.wakin.flexlayout.layoutmanager.impl.elements.FlexWaterfallSection;
-import org.wakin.flexlayout.util.Algorithm;
-import org.wakin.flexlayout.util.Comparator;
+import org.wakin.flexlayout.app.util.Algorithm;
+import org.wakin.flexlayout.app.util.Comparator;
 
 import java.util.ArrayList;
 import java.util.Collections;

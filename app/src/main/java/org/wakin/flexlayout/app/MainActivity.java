@@ -1,4 +1,4 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 
 
 import android.content.pm.ActivityInfo;
@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.wakin.flexlayout.R;
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 import org.wakin.flexlayout.layoutmanager.LayoutCallback;
 import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;

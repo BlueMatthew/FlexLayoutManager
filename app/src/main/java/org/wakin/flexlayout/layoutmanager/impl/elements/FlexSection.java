@@ -5,7 +5,7 @@ import android.graphics.Rect;
 
 import org.wakin.flexlayout.layoutmanager.LayoutCallback;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
-import org.wakin.flexlayout.util.Comparator;
+import org.wakin.flexlayout.app.util.Comparator;
 
 import java.util.ArrayList;
 import java.util.List;

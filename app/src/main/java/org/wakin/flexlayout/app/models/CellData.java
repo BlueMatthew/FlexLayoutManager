@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.models;
+package org.wakin.flexlayout.app.models;
 
 import android.graphics.Color;
 

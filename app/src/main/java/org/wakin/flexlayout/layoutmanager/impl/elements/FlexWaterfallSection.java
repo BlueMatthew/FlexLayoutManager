@@ -6,7 +6,7 @@ import android.graphics.Rect;
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 import org.wakin.flexlayout.layoutmanager.LayoutCallback;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
-import org.wakin.flexlayout.util.Algorithm;
+import org.wakin.flexlayout.app.util.Algorithm;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +42,7 @@ public class FlexWaterfallSection extends FlexSection {
 
         Rect offsettedRect = new Rect(rect);
         offsettedRect.offset(-mFrame.left, -mFrame.top);
-        org.wakin.flexlayout.util.Comparator<FlexColumn, Rect> comparator = vertical ? new FlexColumn.RectHorizontalComparator() : new FlexColumn.RectVerticalComparator();
+        org.wakin.flexlayout.app.util.Comparator<FlexColumn, Rect> comparator = vertical ? new FlexColumn.RectHorizontalComparator() : new FlexColumn.RectVerticalComparator();
 
         int lowerRowBound = Algorithm.lowerBound(mColumns, offsettedRect, comparator);
         if (lowerRowBound == -1) {
@@ -50,9 +50,9 @@ public class FlexWaterfallSection extends FlexSection {
         }
         int upperRowBound = Algorithm.upperBound(mColumns, offsettedRect, comparator);
 
-        org.wakin.flexlayout.util.Comparator<FlexItem, Rect> rowItemComparator = vertical ? new FlexItem.RectVerticalComparator() : new FlexItem.RectHorizontalComparator();
+        org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect> rowItemComparator = vertical ? new FlexItem.RectVerticalComparator() : new FlexItem.RectHorizontalComparator();
         // Check if the item is in rect vertically
-        org.wakin.flexlayout.util.Comparator<FlexItem, Rect> itemFilterComparator = new org.wakin.flexlayout.util.Comparator<FlexItem, Rect>() {
+        org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect> itemFilterComparator = new org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect>() {
             @Override
             public int compare(FlexItem o1, Rect o2) {
                 Rect itemRect = o1.getFrame();

@@ -1,9 +1,8 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 
 import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.content.res.Resources;
-import android.graphics.Rect;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -19,6 +18,8 @@ import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.OnItemTouchListener;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
+
+import org.wakin.flexlayout.R;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 
 
 import android.content.Context;

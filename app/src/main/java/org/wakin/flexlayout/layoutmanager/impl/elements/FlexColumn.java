@@ -2,8 +2,8 @@ package org.wakin.flexlayout.layoutmanager.impl.elements;
 
 import android.graphics.Rect;
 
-import org.wakin.flexlayout.util.Algorithm;
-import org.wakin.flexlayout.util.Comparator;
+import org.wakin.flexlayout.app.util.Algorithm;
+import org.wakin.flexlayout.app.util.Comparator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +62,7 @@ public class FlexColumn {
         return -1;
     }
 
-    public int mergeItemsInBounds(List<FlexItem> items, Rect rect, org.wakin.flexlayout.util.Comparator<FlexItem, Rect> boundComparator, org.wakin.flexlayout.util.Comparator<FlexItem, Rect> filterComparator) {
+    public int mergeItemsInBounds(List<FlexItem> items, Rect rect, org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect> boundComparator, org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect> filterComparator) {
         int lowerBound = Algorithm.lowerBound(mItems, rect, boundComparator);
         if (lowerBound == -1) {
             return 0;
@@ -82,7 +82,7 @@ public class FlexColumn {
         return matchedItems;
     }
 
-    public int mergeItemsInBounds(List<FlexItem> items, Rect rect, org.wakin.flexlayout.util.Comparator<FlexItem, Rect> boundComparator) {
+    public int mergeItemsInBounds(List<FlexItem> items, Rect rect, org.wakin.flexlayout.app.util.Comparator<FlexItem, Rect> boundComparator) {
         int lowerBound = Algorithm.lowerBound(mItems, rect, boundComparator);
         if (lowerBound == -1) {
             return 0;

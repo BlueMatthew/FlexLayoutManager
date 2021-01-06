@@ -1,4 +1,4 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 /**
  * Created by matthew on 23/06/2020.
  */

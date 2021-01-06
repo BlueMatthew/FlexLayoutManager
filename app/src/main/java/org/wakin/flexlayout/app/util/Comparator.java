@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.util;
+package org.wakin.flexlayout.app.util;
 
 public interface Comparator<T1, T2> {
     /**

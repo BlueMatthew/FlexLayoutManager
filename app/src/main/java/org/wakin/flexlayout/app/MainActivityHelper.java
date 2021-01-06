@@ -1,4 +1,4 @@
-package org.wakin.flexlayout;
+package org.wakin.flexlayout.app;
 
 import java.io.IOException;
 import android.content.Context;
@@ -19,8 +19,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
+import org.wakin.flexlayout.R;
 import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
-import org.wakin.flexlayout.cells.ItemView;
+import org.wakin.flexlayout.app.cells.ItemView;
 
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;

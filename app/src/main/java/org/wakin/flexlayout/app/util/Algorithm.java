@@ -1,4 +1,4 @@
-package org.wakin.flexlayout.util;
+package org.wakin.flexlayout.app.util;
 
 import java.util.List;
 import java.util.ListIterator;
