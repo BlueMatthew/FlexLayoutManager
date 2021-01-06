@@ -1,14 +1,17 @@
-package org.wakin.flexlayout.layoutmanager;
+package org.wakin.flexlayout.layoutmanager.impl;
 
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.view.View;
 
-import org.wakin.flexlayout.layoutmanager.elements.FlexFlowSection;
-import org.wakin.flexlayout.layoutmanager.elements.FlexItem;
-import org.wakin.flexlayout.layoutmanager.elements.FlexSection;
-import org.wakin.flexlayout.layoutmanager.elements.FlexWaterfallSection;
+import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
+import org.wakin.flexlayout.layoutmanager.LayoutCallback;
+import org.wakin.flexlayout.layoutmanager.LayoutItem;
+import org.wakin.flexlayout.layoutmanager.impl.elements.FlexFlowSection;
+import org.wakin.flexlayout.layoutmanager.impl.elements.FlexItem;
+import org.wakin.flexlayout.layoutmanager.impl.elements.FlexSection;
+import org.wakin.flexlayout.layoutmanager.impl.elements.FlexWaterfallSection;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -20,6 +23,7 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+// Java implementation vs native implementation
 public class LayoutImpl {
 
     private LayoutCallback mLayoutCallback;

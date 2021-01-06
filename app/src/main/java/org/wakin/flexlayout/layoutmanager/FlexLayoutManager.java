@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearSmoothScroller;
 import androidx.recyclerview.widget.OrientationHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.wakin.flexlayout.layoutmanager.impl.LayoutImpl;
 import org.wakin.flexlayout.util.Algorithm;
 import org.wakin.flexlayout.util.Comparator;
 
@@ -567,7 +568,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         };
 
         Rect rect = new Rect();
-        SectionPosition sectionPosition = new SectionPosition();
+        // SectionPosition sectionPosition = new SectionPosition();
         LayoutItem layoutItem = null;
         for (int childIndex = 0; childIndex < childCount; childIndex++) {
             childView = getChildAt(childIndex - removed);
@@ -947,7 +948,7 @@ public class FlexLayoutManager extends RecyclerView.LayoutManager {
         return getHeight() - getPaddingTop() - getPaddingBottom();
     }
 
-    protected void setContentSize(int width, int height) {
+    public void setContentSize(int width, int height) {
         mContentSizeWidth = width + getPaddingLeft() + getPaddingRight();
         mContentSizeHeight = height + getPaddingTop() + getPaddingBottom();
     }

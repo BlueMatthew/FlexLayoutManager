@@ -29,8 +29,7 @@ public class FlexLayoutHelper {
         return layoutAndSectionsInfo.build();
     }
 
-    public static int[] makeDisplayInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, int pagingOffset)
-    {
+    public static int[] makeDisplayInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, int pagingOffset) {
         DisplayInfo displayInfo = new DisplayInfo(layoutManager, layoutCallback, pageOffsetStart, pageOffsetEnd, pagingOffset);
         return displayInfo.build();
     }

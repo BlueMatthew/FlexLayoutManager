@@ -20,7 +20,7 @@ import android.view.ViewGroup;
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 import org.wakin.flexlayout.layoutmanager.LayoutCallback;
 import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
-import org.wakin.flexlayout.layoutmanager.SectionPosition;
+import org.wakin.flexlayout.layoutmanager.impl.SectionPosition;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
 
 import java.util.List;

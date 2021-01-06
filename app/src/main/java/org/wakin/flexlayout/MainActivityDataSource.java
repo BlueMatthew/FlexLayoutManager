@@ -15,7 +15,7 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import org.wakin.flexlayout.layoutmanager.FlexLayoutManager;
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
-import org.wakin.flexlayout.layoutmanager.SectionPosition;
+import org.wakin.flexlayout.layoutmanager.impl.SectionPosition;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
 import org.wakin.flexlayout.cells.ItemView;
 import org.wakin.flexlayout.models.PageData;
