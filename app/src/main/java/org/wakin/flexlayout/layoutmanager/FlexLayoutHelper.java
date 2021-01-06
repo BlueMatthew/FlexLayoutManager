@@ -3,8 +3,6 @@ package org.wakin.flexlayout.layoutmanager;
 import android.graphics.Point;
 import android.graphics.Rect;
 
-import org.wakin.flexlayout.layoutmanager.graphics.Insets;
-import org.wakin.flexlayout.layoutmanager.graphics.Size;
 import org.wakin.flexlayout.layoutmanager.layoutobjects.DisplayInfo;
 import org.wakin.flexlayout.layoutmanager.layoutobjects.LayoutAndSectionsInfo;
 import org.wakin.flexlayout.layoutmanager.layoutobjects.LayoutInfo;
@@ -54,19 +52,19 @@ public class FlexLayoutHelper {
     public static int[] makeLayoutInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, List<FlexLayoutManager.UpdateItem> updateItems) {
 
         LayoutInfo layoutInfo = new LayoutInfo(layoutManager, layoutCallback, pageOffsetStart, pageOffsetEnd, updateItems);
-        return layoutInfo.write();
+        return layoutInfo.build();
     }
 
     public static int[] makeLayoutAndSectionsInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
         int page = layoutCallback.getPage();
         LayoutAndSectionsInfo layoutAndSectionsInfo = new LayoutAndSectionsInfo(layoutManager, layoutCallback, page, page, null);
-        return layoutAndSectionsInfo.write();
+        return layoutAndSectionsInfo.build();
     }
 
     public static int[] makeDisplayInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, int pagingOffset)
     {
         DisplayInfo displayInfo = new DisplayInfo(layoutManager, layoutCallback, pageOffsetStart, pageOffsetEnd, pagingOffset);
-        return displayInfo.write();
+        return displayInfo.build();
     }
 
     public static List<LayoutItem> unserializeLayoutItemAndStickyItems(int[] data, List<LayoutItem> changingStickyItems) {

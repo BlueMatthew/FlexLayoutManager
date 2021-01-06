@@ -48,8 +48,7 @@ public class DisplayInfo {
     public int[] numberOfPageSections;
     public int pagingOffset;
     public int numberOfPendingPages;
-    List<PageOffsetInfo> pendingPages;
-
+    public List<PageOffsetInfo> pendingPages;
 
     public DisplayInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, int pagingOffset) {
 
@@ -96,7 +95,7 @@ public class DisplayInfo {
         return 14 + numberOfPages + 2 + numberOfPendingPages * 3;
     }
 
-    public int[] write() {
+    public int[] build() {
         int length = calcBufferLength();
         int[] buffer = new int[length];
 

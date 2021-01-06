@@ -45,7 +45,7 @@ public class LayoutAndSectionsInfo extends LayoutInfo {
         return super.calcBufferLength() + 2 + SectionInfo.calcBufferLength() * numberOfSections;
     }
 
-    public int[] write() {
+    public int[] build() {
 
         int length = calcBufferLength();
 

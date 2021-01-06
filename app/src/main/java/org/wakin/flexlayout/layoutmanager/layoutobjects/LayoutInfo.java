@@ -52,7 +52,7 @@ public class LayoutInfo {
         return 11 + 3 + numberOfPages + 1 + numberOfPendingPages;
     }
 
-    public int[] write() {
+    public int[] build() {
         int length = calcBufferLength();
         int[] buffer = new int[length];
 
