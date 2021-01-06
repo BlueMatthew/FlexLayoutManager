@@ -230,7 +230,7 @@ Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_initLayoutEnv(
 }
 
 // protected native long createLayout();
-extern "C" JNIEXPORT long JNICALL
+extern "C" JNIEXPORT jlong JNICALL
 Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_createLayout(
         JNIEnv* env,
         jobject javaThis,

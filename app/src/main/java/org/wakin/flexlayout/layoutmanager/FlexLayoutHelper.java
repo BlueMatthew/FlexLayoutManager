@@ -12,38 +12,6 @@ import java.util.List;
 
 public class FlexLayoutHelper {
 
-    protected static int writeLayoutInfo(int[] layoutInfo, int offsetStart, FlexLayoutManager layoutManager, LayoutCallback layoutCallback)
-    {
-        int offset = offsetStart;
-
-        layoutInfo[offset++] = layoutManager.getOrientation();
-        layoutInfo[offset++] = layoutManager.getWidth();
-        layoutInfo[offset++] = layoutManager.getHeight();
-        layoutInfo[offset++] = layoutManager.getPaddingLeft();
-        layoutInfo[offset++] = layoutManager.getPaddingTop();
-        layoutInfo[offset++] = layoutManager.getPaddingRight();
-        layoutInfo[offset++] = layoutManager.getPaddingBottom();
-        layoutInfo[offset++] = layoutManager.computeHorizontalScrollOffset(null);   // Not good?
-        layoutInfo[offset++] = layoutManager.computeVerticalScrollOffset(null);     // Not good?
-
-        int page = layoutCallback.getPage();
-        int numberOfPages = layoutCallback.getNumberOfPages();
-
-        layoutInfo[offset++] = page;
-        layoutInfo[offset++] = numberOfPages;
-        layoutInfo[offset++] = layoutCallback.getNumberOfFixedSections();
-        for (int pageIndex = 0; pageIndex < numberOfPages; pageIndex++) {
-            layoutInfo[offset++] = layoutCallback.getNumberOfSectionsForPage(pageIndex);
-        }
-
-        layoutInfo[offset++] = 1;
-        // int numberOfPendingPages;
-        // std::vector<int> pendingPages;
-        layoutInfo[offset++] = page;
-
-        return offset - offsetStart;
-    }
-
     public static int[] makeLayoutInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
         int page = layoutCallback.getPage();
         return makeLayoutInfo(layoutManager, layoutCallback, page, page, null);
