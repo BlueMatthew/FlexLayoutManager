@@ -271,7 +271,7 @@ public:
     }
 
     template <class TStickyItem>
-    TCoordinate computerContentOffsetToMakePositionTopVisible(StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Size &size,  const Size &contentSize, const Insets &padding, const Point &contentOffset, TInt position, TCoordinate positionOffset) const
+    TCoordinate computerContentOffsetToMakePositionTopVisible(StickyItemList<TStickyItem> &stickyItems, bool stackedStickyItems, const Size &size, const Insets &padding, const Point &contentOffset, TInt position, TCoordinate positionOffset) const
     {
         SectionConstIterator itTargetSection = std::lower_bound(TBase::m_sections.begin(), TBase::m_sections.end(), position, SectionPositionCompare());
         if (itTargetSection == TBase::m_sections.end())

@@ -5,6 +5,9 @@ import android.graphics.Rect;
 
 import org.wakin.flexlayout.layoutmanager.graphics.Insets;
 import org.wakin.flexlayout.layoutmanager.graphics.Size;
+import org.wakin.flexlayout.layoutmanager.layoutobjects.DisplayInfo;
+import org.wakin.flexlayout.layoutmanager.layoutobjects.LayoutAndSectionsInfo;
+import org.wakin.flexlayout.layoutmanager.layoutobjects.LayoutInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,142 +52,21 @@ public class FlexLayoutHelper {
     }
 
     public static int[] makeLayoutInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, List<FlexLayoutManager.UpdateItem> updateItems) {
-        int[] layoutInfo = null;
 
-        int numberOfSections = layoutCallback.getNumberOfSections();
-        int updateItemsLength = updateItems == null ? 0 : updateItems.size();
-
-        int length = 1 + 9 + 1 + 3 + 2 + layoutCallback.getNumberOfPages() + updateItemsLength * 3 + 10;
-        layoutInfo = new int[length];
-        int offset = 0;
-        layoutInfo[offset++] = length;
-
-        offset += writeLayoutInfo(layoutInfo, offset, layoutManager, layoutCallback);
-        layoutInfo[offset++] = updateItemsLength;
-        for (int idx = 0; idx < updateItemsLength; idx++) {
-            FlexLayoutManager.UpdateItem updateItem = updateItems.get(idx);
-            layoutInfo[offset++] = updateItem.getAction();
-            layoutInfo[offset++] = updateItem.getPostionStart();
-            layoutInfo[offset++] = updateItem.getItemCount();
-        }
-
-        return layoutInfo;
+        LayoutInfo layoutInfo = new LayoutInfo(layoutManager, layoutCallback, pageOffsetStart, pageOffsetEnd, updateItems);
+        return layoutInfo.write();
     }
 
     public static int[] makeLayoutAndSectionsInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback) {
-        int[] layoutInfo = null;
-
-        int numberOfSections = layoutCallback.getNumberOfSections();
-
-        // int length = 1 + 9 + 1 + 3 + layoutCallback.getNumberOfPages() + updateItemsLength * 3;
-
-        int length = 1 + 11 + 3 + layoutCallback.getNumberOfPages() + 14 * numberOfSections + 10;
-        layoutInfo = new int[length];
-        int offset = 0;
-        layoutInfo[offset++] = length;
-
-        offset += writeLayoutInfo(layoutInfo, offset, layoutManager, layoutCallback);
-
-        layoutInfo[offset++] = numberOfSections;
-        layoutInfo[offset++] = 0; // sectionStart
-
-        Size fixedItemSize = new Size();
-        boolean hasFixedItemSize = false;
-        int position = 0;
-        for (int sectionIndex = 0; sectionIndex < numberOfSections; sectionIndex++) {
-            int layoutMode = layoutCallback.getLayoutModeForSection(sectionIndex);
-            int numberOfItems = layoutCallback.getNumberOfItemsInSection(sectionIndex);
-            layoutInfo[offset++] = sectionIndex;
-            layoutInfo[offset++] = position;
-            layoutInfo[offset++] = layoutMode;
-            Insets insets = layoutCallback.getInsetsForSection(sectionIndex);
-            layoutInfo[offset++] = insets.left;
-            layoutInfo[offset++] = insets.top;
-            layoutInfo[offset++] = insets.right;
-            layoutInfo[offset++] = insets.bottom;
-            layoutInfo[offset++] = numberOfItems;
-            layoutInfo[offset++] = layoutCallback.getNumberOfColumnsForSection(sectionIndex);
-            layoutInfo[offset++] = layoutCallback.getMinimumLineSpacingForSection(sectionIndex);
-            layoutInfo[offset++] = layoutCallback.getMinimumInteritemSpacingForSection(sectionIndex);
-
-            fixedItemSize.set(0, 0);
-            hasFixedItemSize = layoutCallback.hasFixedItemSize(sectionIndex, fixedItemSize);
-            layoutInfo[offset++] = hasFixedItemSize ? 1 : 0;
-            layoutInfo[offset++] = fixedItemSize.width;
-            layoutInfo[offset++] = fixedItemSize.height;
-
-            position += numberOfItems;
-        }
-
-        return layoutInfo;
+        int page = layoutCallback.getPage();
+        LayoutAndSectionsInfo layoutAndSectionsInfo = new LayoutAndSectionsInfo(layoutManager, layoutCallback, page, page, null);
+        return layoutAndSectionsInfo.write();
     }
 
     public static int[] makeDisplayInfo(FlexLayoutManager layoutManager, LayoutCallback layoutCallback, int pageOffsetStart, int pageOffsetEnd, int pagingOffset)
     {
-        int[] displayInfo = null;
-
-        int page = layoutCallback.getPage();
-        int numberOfPages = layoutCallback.getNumberOfPages();
-        if (pagingOffset == 0) {
-            pageOffsetStart = page;
-            pageOffsetEnd = page;
-        } else if (pagingOffset < 0) {
-            pageOffsetStart = page;
-            pageOffsetEnd = page < (numberOfPages - 1) ? (page + 1) : page;
-        } else {
-            pageOffsetStart = page > 0 ? (page - 1) : page;
-            pageOffsetEnd = page;
-        }
-        // int numberOfPendingPages = pageOffsetEnd - pageOffsetStart + 1;
-        int numberOfPendingPages = pageOffsetEnd - pageOffsetStart + 1;
-
-        int length = 1 + 9 + 1 + 3 + numberOfPages + numberOfPendingPages * 3 + 1;
-        displayInfo = new int[length];
-
-        int offset = 0;
-        displayInfo[offset++] = length;
-
-        displayInfo[offset++] = layoutManager.getOrientation();
-        displayInfo[offset++] = layoutManager.getWidth();
-        displayInfo[offset++] = layoutManager.getHeight();
-        displayInfo[offset++] = layoutManager.getPaddingLeft();
-        displayInfo[offset++] = layoutManager.getPaddingTop();
-        displayInfo[offset++] = layoutManager.getPaddingRight();
-        displayInfo[offset++] = layoutManager.getPaddingBottom();
-        Point contentOffset = layoutManager.getContentOffset();
-        if (null == contentOffset) {
-            displayInfo[offset++] = 0;
-            displayInfo[offset++] = 0;
-        } else {
-            displayInfo[offset++] = contentOffset.x;
-            displayInfo[offset++] = contentOffset.y;
-        }
-
-        displayInfo[offset++] = page;
-        displayInfo[offset++] = numberOfPages;
-        displayInfo[offset++] = layoutCallback.getNumberOfFixedSections();
-        for (int pageIndex = 0; pageIndex < numberOfPages; ++pageIndex) {
-            displayInfo[offset++] = layoutCallback.getNumberOfSectionsForPage(pageIndex);
-        }
-
-        displayInfo[offset++] = pagingOffset;
-        displayInfo[offset++] = numberOfPendingPages;
-
-
-
-        for (int pendingPage = pageOffsetStart; pendingPage <= pageOffsetEnd; ++pendingPage) {
-            displayInfo[offset++] = pendingPage;
-            contentOffset = layoutCallback.getContentOffsetForPage(pendingPage);
-            if (null == contentOffset) {
-                displayInfo[offset++] = FlexLayoutManager.INVALID_OFFSET;
-                displayInfo[offset++] = FlexLayoutManager.INVALID_OFFSET;
-            } else {
-                displayInfo[offset++] = contentOffset.x;
-                displayInfo[offset++] = contentOffset.y;
-            }
-        }
-
-        return displayInfo;
+        DisplayInfo displayInfo = new DisplayInfo(layoutManager, layoutCallback, pageOffsetStart, pageOffsetEnd, pagingOffset);
+        return displayInfo.write();
     }
 
     public static List<LayoutItem> unserializeLayoutItemAndStickyItems(int[] data, List<LayoutItem> changingStickyItems) {

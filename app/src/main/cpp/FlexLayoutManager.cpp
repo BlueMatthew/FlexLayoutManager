@@ -209,18 +209,18 @@ int FlexLayoutManager::computerContentOffsetToMakePositionTopVisible(const Layou
     if (isVertical())
     {
         VerticalLayout *layout = m_verticalLayout[layoutInfo.page];
-        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
+        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
     }
     else
     {
         HorizontalLayout *layout = m_horizontalLayout[layoutInfo.page];
-        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.contentSize, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
+        return layout->computerContentOffsetToMakePositionTopVisible(m_stickyItems, m_stackedStickyItems, layoutInfo.size, layoutInfo.padding, layoutInfo.contentOffset, position, positionOffset);
     }
 }
 
 // JNI Functions
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_initLayoutEnv(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_initLayoutEnv(
         JNIEnv* env,
         jclass layoutManagerClass,
         jclass callbackClass) {
@@ -231,7 +231,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_initLayoutEnv(
 
 // protected native long createLayout();
 extern "C" JNIEXPORT long JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_createLayout(
         JNIEnv* env,
         jobject javaThis,
         jobject layoutCallback) {
@@ -243,7 +243,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_createLayout(
 
 // protected native long releaseLayout();
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_releaseLayout(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_releaseLayout(
         JNIEnv* env,
         jobject javaThis,
         jlong layout) {
@@ -256,7 +256,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_releaseLayout(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_addStickyItem(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_addStickyItem(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -270,7 +270,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_addStickyItem(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_clearStickyItems(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_clearStickyItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout) {
@@ -283,7 +283,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_clearStickyItems(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_setStackedStickyItems(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_setStackedStickyItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -297,7 +297,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_setStackedStickyItems(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_isStackedStickyItems(
+        Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_isStackedStickyItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout) {
@@ -316,7 +316,7 @@ extern "C" JNIEXPORT jboolean JNICALL
 // 1:
 
 extern "C" JNIEXPORT void JNICALL
-Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
+Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_prepareLayout(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -339,7 +339,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
     buffer.resize(arrayLength);
     env->GetIntArrayRegion(layoutAndSectionsInfo, 0, arrayLength, &(buffer[0]));
     LayoutAndSectionsInfo localLayoutAndSectionsInfo;
-    localLayoutAndSectionsInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+    localLayoutAndSectionsInfo.read(&(buffer[0]), arrayLength);
 
     LayoutCallbackAdapter layoutCallbackAdapter(env, javaThis, layoutCallback, &localLayoutAndSectionsInfo);
 
@@ -348,7 +348,7 @@ Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_prepareLayout(
 }
 
 extern "C" JNIEXPORT jintArray JNICALL
-        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_filterItems(
+        Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_filterItems(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -369,7 +369,7 @@ extern "C" JNIEXPORT jintArray JNICALL
     buffer.resize(arrayLength);
     env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
     DisplayInfo localDisplayInfo;
-    localDisplayInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+    localDisplayInfo.read(&(buffer[0]), arrayLength);
 
     std::vector<LayoutItem> items;
     FlexLayoutManager::StickyItemList changingStickyItems;
@@ -396,7 +396,7 @@ extern "C" JNIEXPORT jintArray JNICALL
 
 // int array: left, top, right, bottom
 extern "C" JNIEXPORT jintArray JNICALL
-        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_getItemRect(
+        Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_getItemRect(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -424,7 +424,7 @@ extern "C" JNIEXPORT jintArray JNICALL
 }
 
 extern "C" JNIEXPORT jint JNICALL
-        Java_org_wakin_flexlayout_LayoutManager_FlexLayoutManager_computerContentOffsetToMakePositionTopVisible(
+        Java_org_wakin_flexlayout_layoutmanager_FlexLayoutManager_computerContentOffsetToMakePositionTopVisible(
         JNIEnv* env,
         jobject javaThis,
         jlong layout,
@@ -447,7 +447,7 @@ extern "C" JNIEXPORT jint JNICALL
     buffer.resize(arrayLength);
     env->GetIntArrayRegion(layoutInfo, 0, arrayLength, &(buffer[0]));
     LayoutInfo localLayoutInfo;
-    localLayoutInfo.readFromBuffer(&(buffer[1]), arrayLength - 1);
+    localLayoutInfo.read(&(buffer[0]), arrayLength);
 
     return layoutManager->computerContentOffsetToMakePositionTopVisible(localLayoutInfo, position, positionOffset);
 }

@@ -13,29 +13,29 @@
 #ifndef FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H
 #define FLEXLAYOUTMANAGER_FLEXLAYOUTOBJECTS_H
 
-using Point = nsflex::PointT<int>;
-using Size = nsflex::SizeT<int>;
-using Rect = nsflex::RectT<int>;
-using Insets = nsflex::InsetsT<int>;
+using Point = nsflex::PointT<jint>;
+using Size = nsflex::SizeT<jint>;
+using Rect = nsflex::RectT<jint>;
+using Insets = nsflex::InsetsT<jint>;
 
-using FlexItem = nsflex::FlexItemT<int, int>;
-using LayoutItem = RecyclerLayoutItemT<int, int>;
+using FlexItem = nsflex::FlexItemT<jint, jint>;
+using LayoutItem = RecyclerLayoutItemT<jint, jint>;
 
-using StickySectionItem = RecyclerSectionItemT<int, (char)(FlexItem::ITEM_TYPE_ITEM)>;
-using StickyItemState = StickyItemStateT<int>;
+using StickySectionItem = RecyclerSectionItemT<jint, (char)(FlexItem::ITEM_TYPE_ITEM)>;
+using StickyItemState = StickyItemStateT<jint>;
 using StickyItem = StickyItemT<StickySectionItem, StickyItemState>;
 
 struct SectionInfo
 {
-    int section;    // For incremental update
-    int position;
+    jint section;    // For incremental update
+    jint position;
     Insets padding;
-    int numberOfItems;
-    int numberOfColumns;
-    int layoutMode;
-    int lineSpacing;
-    int interitemSpacing;
-    int hasFixedItemSize;
+    jint numberOfItems;
+    jint numberOfColumns;
+    jint layoutMode;
+    jint lineSpacing;
+    jint interitemSpacing;
+    jint hasFixedItemSize;
     Size fixedItemSize;
 
 
@@ -48,7 +48,7 @@ struct SectionInfo
         return 14;
     }
 
-    inline int readFromBuffer(int* buffer, int bufferLength)
+    inline int readFromBuffer(jint* buffer, int bufferLength)
     {
         if (bufferLength < numberOfInts())
         {
@@ -80,18 +80,18 @@ struct SectionInfo
 
 
 struct LayoutInfo {
-    int orientation;
+    jint orientation;
     Size size;
     Insets padding;
-    Size contentSize;
+    // Size contentSize;
     Point contentOffset;
 
-    int page;
-    int numberOfPages;
-    int numberOfFixedSections;
-    std::vector<int> numberOfPageSections;
-    int numberOfPendingPages;
-    std::vector<int> pendingPages;
+    jint page;
+    jint numberOfPages;
+    jint numberOfFixedSections;
+    std::vector<jint> numberOfPageSections;
+    jint numberOfPendingPages;
+    std::vector<jint> pendingPages;
 
     LayoutInfo() : orientation(1)
     {
@@ -102,7 +102,7 @@ struct LayoutInfo {
         return 14; //1 + 2 + 4 + 2 + 2 + 1 + 1 + 1 + numberOfPages
     }
 
-    inline int readFromBuffer(int* buffer, int bufferLength)
+    inline int read(jint* buffer, int bufferLength)
     {
         if (bufferLength < numberOfInts())
         {
@@ -134,7 +134,7 @@ struct LayoutInfo {
             numberOfPageSections.reserve(numberOfPages);
             for (int pageIndex = 0; pageIndex < numberOfPages; pageIndex++)
             {
-                int val = buffer[offset++];
+                jint val = buffer[offset++];
                 numberOfPageSections.push_back(val);
             }
         }
@@ -148,7 +148,7 @@ struct LayoutInfo {
                 return 0;
             }
 
-            std::vector<int> pages;
+            std::vector<jint> pages;
             pages.reserve(numberOfPendingPages);
             for (int pageIndex = 0; pageIndex < numberOfPendingPages; pageIndex++)
             {
@@ -157,7 +157,7 @@ struct LayoutInfo {
             }
 
             pendingPages.reserve(numberOfPendingPages);
-            for (std::vector<int>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            for (std::vector<jint>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
             {
                 if (*it == page)
                 {
@@ -165,7 +165,7 @@ struct LayoutInfo {
                     break;
                 }
             }
-            for (std::vector<int>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            for (std::vector<jint>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
             {
                 if (*it != page)
                 {
@@ -181,8 +181,8 @@ struct LayoutInfo {
 
 struct LayoutAndSectionsInfo : public LayoutInfo
 {
-    int numberOfSections;
-    int sectionStart;
+    jint numberOfSections;
+    jint sectionStart;
 
     std::vector<SectionInfo> sections;
 
@@ -196,7 +196,7 @@ struct LayoutAndSectionsInfo : public LayoutInfo
         return LayoutInfo::numberOfInts() + 2;
     }
 
-    inline int readFromBuffer(int* buffer, int bufferLength)
+    inline int read(jint* buffer, int bufferLength)
     {
         int offset = 0;
         if (bufferLength < numberOfInts())
@@ -204,7 +204,7 @@ struct LayoutAndSectionsInfo : public LayoutInfo
             return 0;
         }
 
-        int intsRead = LayoutInfo::readFromBuffer(buffer, bufferLength);
+        int intsRead = LayoutInfo::read(buffer, bufferLength);
         if (intsRead == 0)
         {
             return 0;
@@ -240,20 +240,46 @@ struct LayoutAndSectionsInfo : public LayoutInfo
 
 };
 
+struct PageOffsetInfo
+{
+    jint page;
+    Point offset;
+
+    static int numberOfInts()
+    {
+        return 3;
+    }
+
+    inline int read(jint* buffer, int bufferLength)
+    {
+        if (bufferLength < numberOfInts())
+        {
+            return 0;
+        }
+
+        int offset = 0;
+        page = buffer[offset++];
+        this->offset.x = buffer[offset++];
+        this->offset.y = buffer[offset++];
+
+        return offset;
+    }
+};
+
 struct DisplayInfo {
-    int orientation;
+    jint orientation;
     Size size;
     Insets padding;
     Size contentSize;
     Point contentOffset;
 
-    int page;
-    int numberOfPages;
-    int numberOfFixedSections;
-    std::vector<int> numberOfPageSections;
-    int numberOfPendingPages;
-    std::vector<std::pair<int, Point>> pendingPages;
-    int pagingOffset;
+    jint page;
+    jint numberOfPages;
+    jint numberOfFixedSections;
+    std::vector<jint> numberOfPageSections;
+    jint pagingOffset;
+    jint numberOfPendingPages;
+    std::vector<std::pair<jint, Point>> pendingPages;
 
     DisplayInfo() : orientation(1)
     {
@@ -264,7 +290,7 @@ struct DisplayInfo {
         return 14; //1 + 2 + 4 + 2 + 2 + 1 + 1 + 1 + numberOfPages
     }
 
-    inline int readFromBuffer(int* buffer, int bufferLength)
+    inline int read(jint* buffer, int bufferLength)
     {
         if (bufferLength < numberOfInts())
         {
@@ -279,6 +305,8 @@ struct DisplayInfo {
         padding.top = buffer[offset++];
         padding.right = buffer[offset++];
         padding.bottom = buffer[offset++];
+        contentSize.width = buffer[offset++];
+        contentSize.height = buffer[offset++];
         contentOffset.x = buffer[offset++];
         contentOffset.y = buffer[offset++];
 
@@ -296,7 +324,7 @@ struct DisplayInfo {
             numberOfPageSections.reserve(numberOfPages);
             for (int pageIndex = 0; pageIndex < numberOfPages; pageIndex++)
             {
-                int val = buffer[offset++];
+                jint val = buffer[offset++];
                 numberOfPageSections.push_back(val);
             }
         }
@@ -311,20 +339,20 @@ struct DisplayInfo {
                 return 0;
             }
 
-            std::vector<std::pair<int, Point>> pages;
+            std::vector<std::pair<jint, Point>> pages;
             pages.reserve(numberOfPendingPages);
             pendingPages.reserve(numberOfPendingPages);
 
             Point contentOffset;
             for (int pageIndex = 0; pageIndex < numberOfPendingPages; pageIndex++)
             {
-                int val = buffer[offset++];
+                jint val = buffer[offset++];
                 contentOffset.x = buffer[offset++];
                 contentOffset.y = buffer[offset++];
                 pages.push_back(std::make_pair(val, contentOffset));
             }
 
-            for (typename std::vector<std::pair<int, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            for (typename std::vector<std::pair<jint, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
             {
                 if (it->first == page)
                 {
@@ -332,7 +360,7 @@ struct DisplayInfo {
                     break;
                 }
             }
-            for (typename std::vector<std::pair<int, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
+            for (typename std::vector<std::pair<jint, Point>>::const_iterator it = pages.cbegin(); it != pages.cend(); ++it)
             {
                 if (it->first != page)
                 {
@@ -346,12 +374,12 @@ struct DisplayInfo {
 };
 
 template<typename T>
-inline void writeToBuffer(std::vector<int> &buffer, const T &t)
+inline void writeToBuffer(std::vector<jint> &buffer, const T &t)
 {
 }
 
 template<>
-inline void writeToBuffer(std::vector<int> &buffer, const Rect &rect)
+inline void writeToBuffer(std::vector<jint> &buffer, const Rect &rect)
 {
     buffer.push_back(rect.left());
     buffer.push_back(rect.top());
@@ -360,7 +388,7 @@ inline void writeToBuffer(std::vector<int> &buffer, const Rect &rect)
 }
 
 template<>
-inline void writeToBuffer(std::vector<int> &buffer, const LayoutItem &layoutItem)
+inline void writeToBuffer(std::vector<jint> &buffer, const LayoutItem &layoutItem)
 {
     buffer.push_back(layoutItem.getPage());
     buffer.push_back(layoutItem.getSection());
@@ -373,7 +401,7 @@ inline void writeToBuffer(std::vector<int> &buffer, const LayoutItem &layoutItem
 }
 
 template<>
-inline void writeToBuffer(std::vector<int> &buffer, const StickyItem &stickyItem)
+inline void writeToBuffer(std::vector<jint> &buffer, const StickyItem &stickyItem)
 {
     buffer.push_back(stickyItem.first.getSection());
     buffer.push_back(stickyItem.first.getItem());

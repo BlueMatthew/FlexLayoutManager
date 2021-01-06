@@ -9,7 +9,7 @@
 #define CACHE_NUMBER_OF_ITEMS   1024
 
 #define JAVA_CLASS_POINT "android/graphics/Point"
-#define JAVA_CLASS_SIZE "org/wakin/flexlayout/LayoutManager/Graphics/Size"
+#define JAVA_CLASS_SIZE "org/wakin/flexlayout/layoutmanager/graphics/Size"
 
 
 jmethodID LayoutCallbackAdapter::m_setContentSizeMid = NULL;
@@ -35,7 +35,7 @@ void LayoutCallbackAdapter::initLayoutEnv(JNIEnv* env, jclass layoutManagerClass
     // Methods on LayoutCallback
     m_itemEnterStickyModeMid = env->GetMethodID(callbackClass, "onItemEnterStickyMode", "(IIILandroid/graphics/Rect;)V");
     m_itemExitStickyModeMid = env->GetMethodID(callbackClass, "onItemExitStickyMode", "(III)V");
-    m_itemSizeMid = env->GetMethodID(callbackClass, "getSizeForItem", "(IILorg/wakin/flexlayout/LayoutManager/Graphics/Size;)V");
+    m_itemSizeMid = env->GetMethodID(callbackClass, "getSizeForItem", "(IILorg/wakin/flexlayout/layoutmanager/graphics/Size;)V");
     m_fullSpanMid = env->GetMethodID(callbackClass, "isFullSpanAtItem", "(II)Z");
     m_itemDataMid = env->GetMethodID(callbackClass, "getInfoForItemsBatchly", "(III[I)I");
 
